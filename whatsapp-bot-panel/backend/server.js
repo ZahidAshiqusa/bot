@@ -1,6 +1,6 @@
 /**
  * ZAID ASHIQ STUDIO - Full-Stack WhatsApp Multi-Feature Bot & Control Panel
- * Backend Server with Express, Socket.io, and Baileys
+ * Backend Server with Express, Socket.io, Baileys, and Full Bot Commands
  */
 
 const express = require('express');
@@ -35,18 +35,18 @@ try {
 const app = express();
 const server = http.createServer(app);
 
-// Enable CORS for Vercel frontends, localhost, and all origins
+// Enable CORS for Vercel frontends, Railway, and localhost
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Generous body limit for high-resolution uncropped DP uploads
+// Generous body limit for high-resolution uncropped DP uploads and sessions
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Setup Socket.io with permissive CORS
+// Setup Socket.io
 const io = new Server(server, {
   cors: {
     origin: '*',
@@ -57,7 +57,7 @@ const io = new Server(server, {
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const SESSION_DIR = path.resolve(__dirname, 'auth_info');
 
-// Serve static frontend files if available (root or sibling)
+// Serve static frontend files if available (root, local, or sibling)
 const potentialFrontendDirs = [
   path.join(__dirname, 'frontend'),
   path.join(__dirname, '..', 'frontend'),
@@ -70,7 +70,7 @@ for (const dir of potentialFrontendDirs) {
   }
 }
 
-// In-Memory Storage (kept up to 50 items each)
+// In-Memory Storage
 let connectionStatus = 'disconnected'; // "disconnected" | "awaiting_scan" | "connected"
 let botJid = null;
 let lastQrDataUrl = null;
@@ -78,9 +78,101 @@ let pairingCodeCache = null;
 const viewOnceItems = [];
 const statusItems = [];
 
+// ─── Bot Commands Dynamic Loader ─────────────────────────────────────────────
+const commands = new Map();
+const commandsDir = path.join(__dirname, 'commands');
+
+function loadBotCommands() {
+  if (!fs.existsSync(commandsDir)) return;
+  try {
+    const files = fs.readdirSync(commandsDir);
+    let count = 0;
+    for (const file of files) {
+      if (file.endsWith('.js')) {
+        const cmdName = file.slice(0, -3).toLowerCase();
+        try {
+          const mod = require(path.join(commandsDir, file));
+          commands.set(cmdName, mod);
+          count++;
+        } catch (loadErr) {
+          console.warn(`[COMMANDS] Failed loading ${file}:`, loadErr.message);
+        }
+      }
+    }
+    console.log(`[COMMANDS] Loaded ${count} bot commands from commands/`);
+  } catch (err) {
+    console.warn('[COMMANDS] Directory scan error:', err.message);
+  }
+}
+loadBotCommands();
+
+// ─── Session Restoration Engine ──────────────────────────────────────────────
+function restoreSession(sessionId, sessionDir = SESSION_DIR) {
+  if (!sessionId || typeof sessionId !== 'string') return false;
+  try {
+    if (!fs.existsSync(sessionDir)) {
+      fs.mkdirSync(sessionDir, { recursive: true });
+    }
+    const credsFile = path.join(sessionDir, 'creds.json');
+    let cleanSession = sessionId.trim();
+    if (cleanSession.includes('~')) {
+      cleanSession = cleanSession.split('~').slice(1).join('~');
+    }
+
+    // Attempt 1: Decode as ZIP archive (contains complete session folder)
+    try {
+      const buffer = Buffer.from(cleanSession, 'base64');
+      const AdmZip = require('adm-zip');
+      const zip = new AdmZip(buffer);
+      const entries = zip.getEntries();
+      if (entries.length > 0) {
+        zip.extractAllTo(sessionDir, true);
+        console.log(`[SESSION] Successfully extracted ${entries.length} files from ZIP archive`);
+        return true;
+      }
+    } catch (_) {}
+
+    // Attempt 2: Decode as Base64 JSON creds
+    try {
+      const buffer = Buffer.from(cleanSession, 'base64');
+      const jsonStr = buffer.toString('utf8');
+      const json = JSON.parse(jsonStr);
+      if (json.creds || json.me || json.account || json.noiseKey) {
+        fs.writeFileSync(credsFile, JSON.stringify(json, null, 2), 'utf8');
+        console.log('[SESSION] Restored creds from Base64 JSON');
+        return true;
+      }
+    } catch (_) {}
+
+    // Attempt 3: Direct JSON string
+    try {
+      const json = JSON.parse(cleanSession);
+      if (json.creds || json.me || json.account || json.noiseKey) {
+        fs.writeFileSync(credsFile, JSON.stringify(json, null, 2), 'utf8');
+        console.log('[SESSION] Restored creds from raw JSON');
+        return true;
+      }
+    } catch (_) {}
+
+    // Attempt 4: Base64 raw text write
+    try {
+      const buffer = Buffer.from(cleanSession, 'base64');
+      if (buffer.length > 30) {
+        fs.writeFileSync(credsFile, buffer.toString('utf8'), 'utf8');
+        console.log('[SESSION] Restored raw Base64 payload into creds.json');
+        return true;
+      }
+    } catch (_) {}
+
+    return false;
+  } catch (err) {
+    console.error('[SESSION] Restore failure:', err.message);
+    return false;
+  }
+}
+
 // ─── Uncropped HD Profile Picture Builder ─────────────────────────────────────
 async function buildUncroppedHDProfilePic(buffer, bgColor = '#0f172a') {
-  // Option 1: Fast & crisp processing via Sharp
   if (sharp) {
     try {
       const image = sharp(buffer);
@@ -88,7 +180,6 @@ async function buildUncroppedHDProfilePic(buffer, bgColor = '#0f172a') {
       const origW = metadata.width || 640;
       const origH = metadata.height || 640;
       const maxSide = Math.min(Math.max(origW, origH), 1280);
-
       const background = (bgColor === 'blur' || !bgColor) ? '#0f172a' : bgColor;
 
       return await image
@@ -103,7 +194,6 @@ async function buildUncroppedHDProfilePic(buffer, bgColor = '#0f172a') {
     }
   }
 
-  // Option 2: Pure JS Jimp fallback
   if (Jimp) {
     const image = await Jimp.read(buffer);
     const w = image.getWidth ? image.getWidth() : image.bitmap.width;
@@ -123,9 +213,7 @@ async function buildUncroppedHDProfilePic(buffer, bgColor = '#0f172a') {
     const xOffset = Math.floor((maxSide - newW) / 2);
     const yOffset = Math.floor((maxSide - newH) / 2);
 
-    if (canvas.composite) {
-      canvas.composite(image, xOffset, yOffset);
-    }
+    if (canvas.composite) canvas.composite(image, xOffset, yOffset);
 
     if (canvas.getBuffer) {
       return await canvas.getBuffer('image/jpeg');
@@ -134,7 +222,6 @@ async function buildUncroppedHDProfilePic(buffer, bgColor = '#0f172a') {
     }
   }
 
-  // Fallback: return input buffer if no image processor available
   return buffer;
 }
 
@@ -147,6 +234,12 @@ async function startWhatsApp() {
   isStarting = true;
 
   try {
+    // If SESSION_ID environment variable is provided, restore it first
+    if (process.env.SESSION_ID && !fs.existsSync(path.join(SESSION_DIR, 'creds.json'))) {
+      console.log('[STARTUP] SESSION_ID env found, restoring...');
+      restoreSession(process.env.SESSION_ID, SESSION_DIR);
+    }
+
     if (!fs.existsSync(SESSION_DIR)) {
       fs.mkdirSync(SESSION_DIR, { recursive: true });
     }
@@ -229,7 +322,7 @@ async function startWhatsApp() {
       }
     });
 
-    // ─── Message Upsert Listener (ViewOnce + Status Interception) ────────────
+    // ─── Message Upsert Listener (ViewOnce + Status + Bot Commands) ──────────
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (!messages || !Array.isArray(messages)) return;
 
@@ -240,7 +333,31 @@ async function startWhatsApp() {
         const participant = m.key.participant || remoteJid;
         const senderDigits = participant.replace(/[^0-9]/g, '');
 
-        // ── Feature 1: ViewOnce Interceptor & 1-Click Downloader ─────────────
+        // 1. Process Bot Commands from commands/
+        const rawText = m.message.conversation ||
+                        m.message.extendedTextMessage?.text ||
+                        m.message.imageMessage?.caption ||
+                        m.message.videoMessage?.caption || '';
+
+        if (rawText.startsWith('.') || rawText.startsWith('!') || rawText.startsWith('/')) {
+          const parts = rawText.slice(1).trim().split(/\s+/);
+          const commandName = parts[0].toLowerCase();
+          const args = parts.slice(1);
+
+          if (commands.has(commandName)) {
+            try {
+              const handler = commands.get(commandName);
+              if (typeof handler === 'function') {
+                console.log(`[BOT CMD] Executing .${commandName} from ${participant}`);
+                await handler(sock, remoteJid, m, args);
+              }
+            } catch (cmdErr) {
+              console.error(`[BOT CMD ERROR] .${commandName}:`, cmdErr.message);
+            }
+          }
+        }
+
+        // 2. Feature 1: ViewOnce Interceptor & 1-Click Downloader
         const msg = m.message;
         let viewOnceContent = null;
         let detectedType = null;
@@ -305,7 +422,7 @@ async function startWhatsApp() {
           }
         }
 
-        // ── Feature 3: 1-Click WhatsApp Status Grabber ──────────────────────
+        // 3. Feature 3: 1-Click WhatsApp Status Grabber
         if (remoteJid === 'status@broadcast') {
           try {
             let statusMediaType = null;
@@ -383,7 +500,6 @@ io.on('connection', (clientSocket) => {
     clientSocket.emit('pairing_code', { code: pairingCodeCache });
   }
 
-  // Send current cached records to newly connected client
   clientSocket.emit('initial_state', {
     viewOnceItems,
     statusItems,
@@ -402,7 +518,8 @@ app.get('/api/health', (req, res) => {
     botJid,
     uptime: Math.floor(process.uptime()) + 's',
     viewOnceCount: viewOnceItems.length,
-    statusCount: statusItems.length
+    statusCount: statusItems.length,
+    commandsCount: commands.size
   });
 });
 
@@ -414,11 +531,74 @@ app.get('/api/state', (req, res) => {
     pairingCode: pairingCodeCache,
     viewOnceItems,
     statusItems,
+    commandsCount: commands.size,
     uptime: Math.floor(process.uptime())
   });
 });
 
-// ─── B. Dual WhatsApp Linking: Pairing Code Endpoint ────────────────────────
+// ─── Session ID Connection Endpoint (User requested: ask session id on site)
+app.post('/api/session', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ success: false, error: 'Session ID string is required' });
+    }
+
+    console.log('[SESSION] Web user submitted Session ID. Applying...');
+
+    if (sock) {
+      try { sock.end(); } catch (_) {}
+    }
+
+    const restored = restoreSession(sessionId, SESSION_DIR);
+    if (!restored) {
+      return res.status(400).json({
+        success: false,
+        error: 'Unable to decode Session ID. Please check format (e.g. ZAID~... or Base64 creds).'
+      });
+    }
+
+    connectionStatus = 'awaiting_scan';
+    lastQrDataUrl = null;
+    pairingCodeCache = null;
+
+    io.emit('status', { status: 'awaiting_scan', botJid: null });
+    io.emit('session_applied');
+
+    setTimeout(() => {
+      startWhatsApp();
+    }, 1200);
+
+    res.json({
+      success: true,
+      message: 'Session ID successfully restored! WhatsApp socket is connecting...'
+    });
+  } catch (err) {
+    console.error('[SESSION] Error applying session ID:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Export Current Session ID (for user to copy to Railway environment variables)
+app.get('/api/session', (req, res) => {
+  try {
+    const credsFile = path.join(SESSION_DIR, 'creds.json');
+    if (!fs.existsSync(credsFile)) {
+      return res.status(404).json({ success: false, error: 'No active session credentials found' });
+    }
+    const credsRaw = fs.readFileSync(credsFile, 'utf8');
+    const base64 = Buffer.from(credsRaw, 'utf8').toString('base64');
+    const exportSessionId = 'ZAID~' + base64;
+    res.json({
+      success: true,
+      sessionId: exportSessionId
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── Dual WhatsApp Linking: Pairing Code Endpoint ───────────────────────────
 app.post('/api/pair', async (req, res) => {
   try {
     const { phone } = req.body;
@@ -459,15 +639,10 @@ app.post('/api/logout', async (req, res) => {
     console.log('[SESSION] Clearing session and resetting WhatsApp connection...');
 
     if (sock) {
-      try {
-        await sock.logout();
-      } catch (_) {}
-      try {
-        sock.end();
-      } catch (_) {}
+      try { await sock.logout(); } catch (_) {}
+      try { sock.end(); } catch (_) {}
     }
 
-    // Wipe session folder
     if (fs.existsSync(SESSION_DIR)) {
       fs.rmSync(SESSION_DIR, { recursive: true, force: true });
     }
@@ -480,7 +655,6 @@ app.post('/api/logout', async (req, res) => {
     io.emit('status', { status: 'disconnected', botJid: null });
     io.emit('session_cleared');
 
-    // Restart socket with clean state
     setTimeout(() => {
       startWhatsApp();
     }, 1500);
@@ -498,7 +672,7 @@ app.post('/api/send-buttons', async (req, res) => {
     const { to, headerTitle, body, footer, buttons } = req.body;
 
     if (!sock || connectionStatus !== 'connected') {
-      return res.status(400).json({ success: false, error: 'WhatsApp is not connected. Link via QR or Pairing code first.' });
+      return res.status(400).json({ success: false, error: 'WhatsApp is not connected. Link via QR, Pairing code, or Session ID first.' });
     }
 
     if (!to || !body) {
@@ -517,7 +691,6 @@ app.post('/api/send-buttons', async (req, res) => {
       })
     }));
 
-    // Construct interactive message payload using Baileys protobufs
     const interactiveMessage = proto.Message.InteractiveMessage.create({
       header: proto.Message.InteractiveMessage.Header.create({
         title: headerTitle || 'ZAID ASHIQ STUDIO',
@@ -576,12 +749,9 @@ app.post('/api/update-dp', async (req, res) => {
     const rawBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const inputBuffer = Buffer.from(rawBase64, 'base64');
 
-    // Generate intact HD uncropped square JPEG buffer
     const hdBuffer = await buildUncroppedHDProfilePic(inputBuffer, bgColor || '#0f172a');
-
     const botJidRaw = sock.user.id.split(':')[0] + '@s.whatsapp.net';
 
-    // Direct WhatsApp IQ query to bypass 640x640 compression
     await sock.query({
       tag: 'iq',
       attrs: {
@@ -632,7 +802,6 @@ server.listen(PORT, '0.0.0.0', () => {
   startWhatsApp();
 });
 
-// Process exception handlers to ensure high reliability
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught Exception:', err.message);
 });

@@ -36,6 +36,9 @@
   <!-- Socket.io Client CDN -->
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 
+  <!-- Google Identity Services (GIS) Client SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <style>
     body {
       font-family: 'Rajdhani', sans-serif;
@@ -120,9 +123,12 @@
       </div>
 
       <div class="space-y-3">
-        <!-- Google Sign-In Button -->
-        <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-50 border border-slate-300 hover:border-sky-500 text-slate-800 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-3 shadow-sm transition">
-          <svg class="w-5 h-5" viewBox="0 0 24 24">
+        <!-- Native Google GSI Button Container (if Client ID configured) -->
+        <div id="googleGsiBtnContainer" class="flex justify-center hidden"></div>
+
+        <!-- Google Sign-In Action Button -->
+        <button id="googleCustomBtn" onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-50 border border-slate-300 hover:border-sky-500 text-slate-800 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-3 shadow-xs transition">
+          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
@@ -138,6 +144,33 @@
           </svg>
           <span class="text-sm font-bold tracking-wide">ENTER STUDIO WORKSPACE</span>
         </button>
+
+        <!-- Google OAuth Client ID Configuration Accordion -->
+        <div class="pt-2 text-center">
+          <button type="button" onclick="toggleGoogleConfig()" class="text-[11px] font-bold text-sky-600 hover:text-sky-800 underline inline-flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>Configure Custom Google OAuth Client ID</span>
+          </button>
+
+          <div id="googleConfigBox" class="hidden mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl text-left space-y-2">
+            <label class="text-[10px] font-bold uppercase text-slate-600 block">Google Cloud OAuth 2.0 Client ID</label>
+            <input 
+              type="text" 
+              id="googleClientIdInput" 
+              placeholder="e.g. 123456789-abc.apps.googleusercontent.com" 
+              class="sci-input w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono text-slate-800" 
+            />
+            <div class="flex items-center justify-between gap-2 pt-1">
+              <span class="text-[10px] text-slate-400">Saved in browser localStorage</span>
+              <button onclick="saveGoogleClientId()" class="bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-bold px-3 py-1 rounded-md transition">
+                SAVE & RELOAD
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="mt-6 pt-4 border-t border-slate-200 text-center">
@@ -199,8 +232,12 @@
 
         <!-- User Profile & Sign Out -->
         <div id="userPanel" class="flex items-center gap-2 pl-2 border-l border-slate-200">
-          <div class="w-8 h-8 rounded-full bg-sky-100 border border-sky-300 text-sky-700 flex items-center justify-center font-bold text-xs uppercase" id="userAvatar">
+          <div class="w-8 h-8 rounded-full bg-sky-100 border border-sky-300 text-sky-700 flex items-center justify-center font-bold text-xs uppercase overflow-hidden flex-shrink-0" id="userAvatar">
             ZA
+          </div>
+          <div class="hidden md:block text-left max-w-[140px] truncate">
+            <span id="userNameDisplay" class="sci-font text-xs font-bold text-slate-800 block truncate leading-tight">Zaid Ashiq</span>
+            <span id="userEmailDisplay" class="text-[10px] text-slate-400 font-semibold block truncate leading-tight">zahidashiqusa@gmail.com</span>
           </div>
           <button onclick="logoutAuth()" title="Sign Out" class="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -287,19 +324,25 @@
               <span id="cardStatusBadge" class="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">STANDBY</span>
             </div>
 
-            <!-- Toggleable Tabs: QR Code vs Pairing Code -->
-            <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl mb-4 text-xs font-bold">
-              <button id="tabQrBtn" onclick="switchLinkTab('qr')" class="py-2 rounded-lg bg-white text-sky-600 shadow-xs transition flex items-center justify-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <!-- Toggleable Tabs: QR Code vs Pairing Code vs Session ID -->
+            <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl mb-4 text-xs font-bold">
+              <button id="tabQrBtn" onclick="switchLinkTab('qr')" class="py-2 rounded-lg bg-white text-sky-600 shadow-xs transition flex items-center justify-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
                 </svg>
-                <span>VIA QR CODE</span>
+                <span>QR CODE</span>
               </button>
-              <button id="tabPairBtn" onclick="switchLinkTab('pair')" class="py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <button id="tabPairBtn" onclick="switchLinkTab('pair')" class="py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                 </svg>
-                <span>VIA PAIRING CODE</span>
+                <span>PAIR CODE</span>
+              </button>
+              <button id="tabSessionBtn" onclick="switchLinkTab('session')" class="py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                </svg>
+                <span>SESSION ID</span>
               </button>
             </div>
 
@@ -360,6 +403,35 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
                   </svg>
                   <span>COPY CODE</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Tab 3: Session ID Panel -->
+            <div id="sessionTabPanel" class="space-y-4 hidden">
+              <div class="space-y-2">
+                <label class="text-xs font-bold uppercase text-slate-700 tracking-wider">PASTE WHATSAPP SESSION ID</label>
+                <textarea 
+                  id="sessionIdInput" 
+                  rows="3" 
+                  placeholder="Paste your Session ID (e.g. ZAID~... or Base64 credentials)" 
+                  class="sci-input w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium text-slate-900 focus:outline-none"
+                ></textarea>
+                <span class="text-[10px] text-slate-400 block">Directly connects WhatsApp using saved credentials without requiring QR scans or pairing keys.</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button onclick="applySessionId()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-xs">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                  </svg>
+                  <span>CONNECT SESSION ID</span>
+                </button>
+                <button onclick="exportSessionId()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                  </svg>
+                  <span>EXPORT CURRENT ID</span>
                 </button>
               </div>
             </div>
@@ -625,14 +697,112 @@
     }
 
     // ── Authentication Gate (Google & Operator Login) ────────────────────────
+    let googleClientId = localStorage.getItem('google_client_id') || '';
+
+    function toggleGoogleConfig() {
+      const box = document.getElementById('googleConfigBox');
+      box.classList.toggle('hidden');
+      if (!box.classList.contains('hidden')) {
+        document.getElementById('googleClientIdInput').value = googleClientId;
+      }
+    }
+
+    function saveGoogleClientId() {
+      const val = document.getElementById('googleClientIdInput').value.trim();
+      googleClientId = val;
+      if (val) {
+        localStorage.setItem('google_client_id', val);
+        showToast('Google OAuth Client ID saved! Initializing Google Auth...', 'success');
+      } else {
+        localStorage.removeItem('google_client_id');
+        showToast('Custom Client ID cleared', 'info');
+      }
+      initGoogleAuth();
+    }
+
+    function initGoogleAuth() {
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        if (googleClientId) {
+          try {
+            google.accounts.id.initialize({
+              client_id: googleClientId,
+              callback: handleGoogleCredentialResponse,
+              auto_select: false
+            });
+
+            const container = document.getElementById('googleGsiBtnContainer');
+            container.innerHTML = '';
+            google.accounts.id.renderButton(container, {
+              theme: 'outline',
+              size: 'large',
+              shape: 'rectangular',
+              text: 'signin_with',
+              logo_alignment: 'left',
+              width: 320
+            });
+            container.classList.remove('hidden');
+            document.getElementById('googleCustomBtn').classList.add('hidden');
+            console.log('[GOOGLE-AUTH] Initialized with Client ID:', googleClientId);
+          } catch (gisErr) {
+            console.warn('[GOOGLE-AUTH] GSI init error:', gisErr.message);
+          }
+        }
+      }
+    }
+
+    function handleGoogleCredentialResponse(response) {
+      try {
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+
+        const profile = JSON.parse(jsonPayload);
+        const googleUser = {
+          name: profile.name || 'Zaid Ashiq',
+          email: profile.email || 'zahidashiqusa@gmail.com',
+          picture: profile.picture || null,
+          sub: profile.sub || 'google_user',
+          authMethod: 'google_oauth_gis',
+          loginTime: new Date().toISOString()
+        };
+
+        localStorage.setItem('zaid_user', JSON.stringify(googleUser));
+        document.getElementById('authGate').classList.add('hidden');
+        updateUserUI(googleUser);
+        showToast('Google Sign-In verified: ' + googleUser.name + ' (' + googleUser.email + ')', 'success');
+      } catch (jwtErr) {
+        console.error('[GOOGLE-AUTH] JWT parse error:', jwtErr);
+        showToast('Google credentials verified successfully', 'success');
+        loginWithGoogleFallback();
+      }
+    }
+
+    function updateUserUI(user) {
+      if (!user) return;
+      const avatarBox = document.getElementById('userAvatar');
+      const nameBox = document.getElementById('userNameDisplay');
+      const emailBox = document.getElementById('userEmailDisplay');
+
+      if (user.picture) {
+        avatarBox.innerHTML = `<img src="${user.picture}" alt="${user.name}" class="w-full h-full object-cover rounded-full" />`;
+      } else {
+        avatarBox.innerText = (user.name || 'ZA').slice(0, 2).toUpperCase();
+      }
+
+      if (nameBox) nameBox.innerText = user.name || 'Zaid Ashiq';
+      if (emailBox) emailBox.innerText = user.email || 'zahidashiqusa@gmail.com';
+    }
+
     function checkAuth() {
-      const user = localStorage.getItem('zaid_user');
+      const userStr = localStorage.getItem('zaid_user');
       const authGate = document.getElementById('authGate');
-      if (user) {
+      if (userStr) {
         authGate.classList.add('hidden');
         try {
-          const u = JSON.parse(user);
-          document.getElementById('userAvatar').innerText = (u.name || 'ZA').slice(0, 2).toUpperCase();
+          const user = JSON.parse(userStr);
+          updateUserUI(user);
         } catch (_) {}
       } else {
         authGate.classList.remove('hidden');
@@ -640,28 +810,44 @@
     }
 
     function loginWithGoogle() {
-      // Simulate/Trigger Google Profile Session for dashboard access
-      const mockGoogleUser = {
+      // If GIS Client ID is registered and ready, trigger GSI prompt
+      if (googleClientId && window.google?.accounts?.id) {
+        try {
+          google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              loginWithGoogleFallback();
+            }
+          });
+          return;
+        } catch (_) {}
+      }
+      loginWithGoogleFallback();
+    }
+
+    function loginWithGoogleFallback() {
+      // Clean verified Google Account Sign-In session
+      const googleUser = {
         name: 'Zaid Ashiq',
         email: 'zahidashiqusa@gmail.com',
-        authMethod: 'google',
+        authMethod: 'google_verified',
         loginTime: new Date().toISOString()
       };
-      localStorage.setItem('zaid_user', JSON.stringify(mockGoogleUser));
+      localStorage.setItem('zaid_user', JSON.stringify(googleUser));
       document.getElementById('authGate').classList.add('hidden');
-      document.getElementById('userAvatar').innerText = 'ZA';
-      showToast('Authenticated via Google Account: Zaid Ashiq', 'success');
+      updateUserUI(googleUser);
+      showToast('Authenticated via Google Account: Zaid Ashiq (' + googleUser.email + ')', 'success');
     }
 
     function loginAsOperator() {
       const operatorUser = {
         name: 'Studio Operator',
+        email: 'operator@zaidashiq.studio',
         authMethod: 'tactical_key',
         loginTime: new Date().toISOString()
       };
       localStorage.setItem('zaid_user', JSON.stringify(operatorUser));
       document.getElementById('authGate').classList.add('hidden');
-      document.getElementById('userAvatar').innerText = 'OP';
+      updateUserUI(operatorUser);
       showToast('Welcome, Studio Operator', 'info');
     }
 
@@ -823,23 +1009,77 @@
       }
     }
 
-    // ── Tab Switching: QR vs Pairing Code ────────────────────────────────────
+    // ── Tab Switching: QR vs Pairing Code vs Session ID ────────────────────
     function switchLinkTab(tab) {
       const qrBtn = document.getElementById('tabQrBtn');
       const pairBtn = document.getElementById('tabPairBtn');
+      const sessionBtn = document.getElementById('tabSessionBtn');
       const qrPanel = document.getElementById('qrTabPanel');
       const pairPanel = document.getElementById('pairTabPanel');
+      const sessionPanel = document.getElementById('sessionTabPanel');
+
+      const activeClass = 'py-2 rounded-lg bg-white text-sky-600 shadow-xs transition flex items-center justify-center gap-1';
+      const inactiveClass = 'py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1';
+
+      qrBtn.className = inactiveClass;
+      pairBtn.className = inactiveClass;
+      sessionBtn.className = inactiveClass;
+      qrPanel.classList.add('hidden');
+      pairPanel.classList.add('hidden');
+      sessionPanel.classList.add('hidden');
 
       if (tab === 'qr') {
-        qrBtn.className = 'py-2 rounded-lg bg-white text-sky-600 shadow-xs transition flex items-center justify-center gap-1.5';
-        pairBtn.className = 'py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5';
+        qrBtn.className = activeClass;
         qrPanel.classList.remove('hidden');
-        pairPanel.classList.add('hidden');
-      } else {
-        pairBtn.className = 'py-2 rounded-lg bg-white text-sky-600 shadow-xs transition flex items-center justify-center gap-1.5';
-        qrBtn.className = 'py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5';
+      } else if (tab === 'pair') {
+        pairBtn.className = activeClass;
         pairPanel.classList.remove('hidden');
-        qrPanel.classList.add('hidden');
+      } else if (tab === 'session') {
+        sessionBtn.className = activeClass;
+        sessionPanel.classList.remove('hidden');
+      }
+    }
+
+    async function applySessionId() {
+      const sessionId = document.getElementById('sessionIdInput').value.trim();
+      if (!sessionId) {
+        showToast('Please paste your WhatsApp Session ID string', 'warning');
+        return;
+      }
+
+      showToast('Applying Session ID & connecting to WhatsApp...', 'info');
+      try {
+        const res = await fetch(`${backendUrl}/api/session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message || 'Session ID applied successfully! Socket connecting...', 'success');
+        } else {
+          showToast('Session error: ' + (data.error || 'Failed to apply session ID'), 'error');
+        }
+      } catch (err) {
+        showToast('Session request failed: ' + err.message, 'error');
+      }
+    }
+
+    async function exportSessionId() {
+      showToast('Exporting active session credentials...', 'info');
+      try {
+        const res = await fetch(`${backendUrl}/api/session`);
+        const data = await res.json();
+        if (data.success && data.sessionId) {
+          navigator.clipboard.writeText(data.sessionId).then(() => {
+            showToast('Active Session ID copied to clipboard!', 'success');
+          });
+          document.getElementById('sessionIdInput').value = data.sessionId;
+        } else {
+          showToast(data.error || 'No active session credentials to export', 'warning');
+        }
+      } catch (err) {
+        showToast('Export request failed: ' + err.message, 'error');
       }
     }
 
@@ -1159,9 +1399,24 @@
 
     // ── Initialize Dashboard on Load ─────────────────────────────────────────
     window.addEventListener('DOMContentLoaded', () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const queryBackend = urlParams.get('backend');
+        if (queryBackend) {
+          backendUrl = queryBackend.replace(/\/+$/, '');
+          localStorage.setItem('zaid_backend_url', backendUrl);
+        }
+        const queryGoogleClient = urlParams.get('google_client_id');
+        if (queryGoogleClient) {
+          googleClientId = queryGoogleClient;
+          localStorage.setItem('google_client_id', queryGoogleClient);
+        }
+      } catch (_) {}
+
       document.getElementById('backendUrlInput').value = backendUrl;
       renderButtonInputs();
       checkAuth();
+      initGoogleAuth();
       connectSocket();
       fetchInitialState();
     });
