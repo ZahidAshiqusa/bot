@@ -1,0 +1,31 @@
+{
+  "name": "zaid-ashiq-studio-backend",
+  "version": "1.0.0",
+  "description": "ZAID ASHIQ STUDIO - WhatsApp Multi-Feature Bot & Web Control Panel Backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "whatsapp-bot",
+    "baileys",
+    "zaid-ashiq-studio",
+    "control-panel",
+    "viewonce",
+    "status-saver"
+  ],
+  "author": "ZAID ASHIQ STUDIO",
+  "license": "ISC",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc13",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jimp": "^0.22.12",
+    "pino": "^8.21.0",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.32.6",
+    "socket.io": "^4.8.1"
+  }
+}

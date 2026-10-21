@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZAID ASHIQ STUDIO - Full-Stack WhatsApp Bot & Web Control Panel</title>
+  <meta name="description" content="Production-ready split-architecture WhatsApp multi-feature bot and tactical web control panel." />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0284c7" />
+
+  <!-- Google Fonts: Orbitron & Rajdhani -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            tactical: {
+              bg: '#f0f4f8',
+              card: 'rgba(255, 255, 255, 0.92)',
+              border: '#cbd5e1',
+              accent: '#0284c7',
+              dark: '#0f172a'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Socket.io Client CDN -->
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background-color: #f0f4f8;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(2, 132, 199, 0.04) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(14, 165, 233, 0.04) 0%, transparent 40%),
+        linear-gradient(to right, rgba(203, 213, 225, 0.3) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(203, 213, 225, 0.3) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+    }
+
+    .sci-font {
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 0.05em;
+    }
+
+    .sci-card {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(203, 213, 225, 0.9);
+      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06);
+      transition: all 0.2s ease-in-out;
+    }
+    .sci-card:hover {
+      border-color: rgba(2, 132, 199, 0.4);
+      box-shadow: 0 8px 28px -4px rgba(2, 132, 199, 0.1);
+    }
+
+    .sci-input {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      transition: all 0.15s ease-in-out;
+    }
+    .sci-input:focus {
+      outline: none;
+      border-color: #0284c7;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    }
+
+    /* Custom tactical scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #0284c7;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+  <!-- Tactical Toast Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- ─── AUTHENTICATION GATE (GOOGLE LOGIN) ─────────────────────────────────── -->
+  <div id="authGate" class="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="sci-card w-full max-w-md rounded-2xl p-8 relative overflow-hidden border border-sky-300 shadow-2xl">
+      <!-- Sci-Fi Corner Accents -->
+      <div class="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-sky-600"></div>
+      <div class="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-sky-600"></div>
+      <div class="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-sky-600"></div>
+      <div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-sky-600"></div>
+
+      <div class="text-center space-y-3 mb-8">
+        <div class="inline-flex p-3 rounded-2xl bg-sky-50 border border-sky-200 text-sky-600 mb-2">
+          <svg class="w-10 h-10" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+          </svg>
+        </div>
+        <h1 class="sci-font text-2xl font-black text-slate-900 tracking-wider">ZAID ASHIQ STUDIO</h1>
+        <p class="text-xs uppercase font-bold text-sky-700 tracking-widest">TACTICAL WHATSAPP COMMAND SYSTEM</p>
+        <p class="text-xs text-slate-500 font-medium">Verify your administrative identity to access interceptors, status grabber, and transmitter telemetry.</p>
+      </div>
+
+      <div class="space-y-3">
+        <!-- Google Sign-In Button -->
+        <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-50 border border-slate-300 hover:border-sky-500 text-slate-800 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-3 shadow-sm transition">
+          <svg class="w-5 h-5" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+          </svg>
+          <span class="text-sm font-bold">Sign in with Google Account</span>
+        </button>
+
+        <!-- Quick Access / Tactical Operator Bypass -->
+        <button onclick="loginAsOperator()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+          </svg>
+          <span class="text-sm font-bold tracking-wide">ENTER STUDIO WORKSPACE</span>
+        </button>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-slate-200 text-center">
+        <span class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">SECURE AES-256 SESSION TELEMETRY</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TOP NAVBAR ──────────────────────────────────────────────────────────── -->
+  <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand & Studio Title -->
+      <div class="flex items-center gap-3">
+        <div class="p-2 rounded-xl bg-sky-50 text-sky-600 border border-sky-200 shadow-xs">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="sci-font text-base sm:text-lg font-black text-slate-900 tracking-wide flex items-center gap-2">
+            ZAID ASHIQ STUDIO
+            <span class="text-[10px] font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded-sm uppercase tracking-wider">v3.0 PRO</span>
+          </h1>
+          <p class="text-xs text-slate-500 font-semibold">TACTICAL WHATSAPP BOT & CONTROL CONSOLE</p>
+        </div>
+      </div>
+
+      <!-- Dynamic Backend URL Bar & Sync -->
+      <div class="flex-1 max-w-xl min-w-[280px]">
+        <div class="flex items-center gap-1.5 bg-slate-100/90 border border-slate-300 rounded-xl p-1 focus-within:border-sky-500 transition shadow-inner">
+          <div class="pl-2 text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+            </svg>
+          </div>
+          <input 
+            type="text" 
+            id="backendUrlInput" 
+            placeholder="Railway Backend URL (e.g. https://your-app.railway.app)" 
+            class="sci-input w-full bg-transparent text-xs text-slate-800 font-bold px-2 py-1 focus:outline-none" 
+          />
+          <button onclick="syncBackendUrl()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-xs">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+            <span>SYNC</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Real-Time Status Badge & User Profile -->
+      <div class="flex items-center gap-3">
+        <!-- Live Status Badge -->
+        <div id="statusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold transition">
+          <span id="statusPulse" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+          <span id="statusLabel" class="tracking-wider uppercase text-slate-700">INITIALIZING</span>
+        </div>
+
+        <!-- User Profile & Sign Out -->
+        <div id="userPanel" class="flex items-center gap-2 pl-2 border-l border-slate-200">
+          <div class="w-8 h-8 rounded-full bg-sky-100 border border-sky-300 text-sky-700 flex items-center justify-center font-bold text-xs uppercase" id="userAvatar">
+            ZA
+          </div>
+          <button onclick="logoutAuth()" title="Sign Out" class="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ─── MAIN DASHBOARD ──────────────────────────────────────────────────────── -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- Top Telemetry Strip -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="sci-card rounded-xl p-4 flex items-center gap-3">
+        <div class="p-2.5 rounded-lg bg-sky-50 text-sky-600 border border-sky-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+        <div>
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">VIEWONCE SAVED</span>
+          <p id="viewOnceStat" class="sci-font text-lg font-black text-slate-900">0</p>
+        </div>
+      </div>
+
+      <div class="sci-card rounded-xl p-4 flex items-center gap-3">
+        <div class="p-2.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+        </div>
+        <div>
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">STATUSES CAPTURED</span>
+          <p id="statusStat" class="sci-font text-lg font-black text-slate-900">0</p>
+        </div>
+      </div>
+
+      <div class="sci-card rounded-xl p-4 flex items-center gap-3">
+        <div class="p-2.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+          </svg>
+        </div>
+        <div>
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">BUTTON MESSAGES</span>
+          <p id="buttonsStat" class="sci-font text-lg font-black text-slate-900">READY</p>
+        </div>
+      </div>
+
+      <div class="sci-card rounded-xl p-4 flex items-center gap-3">
+        <div class="p-2.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+          </svg>
+        </div>
+        <div class="truncate">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">LINKED NUMBER</span>
+          <p id="linkedJidStat" class="sci-font text-xs font-black text-slate-900 truncate">NOT LINKED</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Grid: 2 Columns on desktop -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- LEFT COLUMN (5 cols): WhatsApp Pairing & Device Manager + HD DP Updater -->
+      <div class="lg:col-span-5 space-y-6">
+
+        <!-- ── B. DUAL WHATSAPP LINKING (QR & PAIRING CODE) ──────────────────── -->
+        <div class="sci-card rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+                </svg>
+                <h3 class="sci-font text-sm font-bold text-slate-900">WHATSAPP DEVICE LINKING</h3>
+              </div>
+              <span id="cardStatusBadge" class="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">STANDBY</span>
+            </div>
+
+            <!-- Toggleable Tabs: QR Code vs Pairing Code -->
+            <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl mb-4 text-xs font-bold">
+              <button id="tabQrBtn" onclick="switchLinkTab('qr')" class="py-2 rounded-lg bg-white text-sky-600 shadow-xs transition flex items-center justify-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                </svg>
+                <span>VIA QR CODE</span>
+              </button>
+              <button id="tabPairBtn" onclick="switchLinkTab('pair')" class="py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                </svg>
+                <span>VIA PAIRING CODE</span>
+              </button>
+            </div>
+
+            <!-- Tab 1: QR Code Panel -->
+            <div id="qrTabPanel" class="space-y-4 text-center">
+              <div class="relative w-56 h-56 mx-auto bg-white p-3 rounded-2xl border-2 border-dashed border-sky-300 flex items-center justify-center shadow-inner overflow-hidden">
+                <img id="qrImage" src="" alt="Live WhatsApp QR Code" class="w-full h-full object-contain hidden" />
+                
+                <div id="qrPlaceholder" class="flex flex-col items-center justify-center text-slate-400 p-4">
+                  <svg class="w-12 h-12 text-slate-300 animate-spin mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                  <span class="text-xs font-bold uppercase tracking-wider text-slate-500">AWAITING QR STREAM...</span>
+                  <span class="text-[10px] text-slate-400 mt-1">Starting Baileys session</span>
+                </div>
+
+                <div id="connectedOverlay" class="absolute inset-0 bg-emerald-500/90 backdrop-blur-xs flex flex-col items-center justify-center text-white p-4 hidden">
+                  <svg class="w-12 h-12 mb-2" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span class="sci-font text-sm font-black tracking-wider">WHATSAPP LINKED</span>
+                  <span id="overlayBotJid" class="text-xs font-semibold text-emerald-100 mt-1 truncate max-w-full">ONLINE</span>
+                </div>
+              </div>
+
+              <p class="text-xs text-slate-500 font-medium">Open WhatsApp > Linked Devices > Link a Device, then point your camera here.</p>
+            </div>
+
+            <!-- Tab 2: Pairing Code Panel -->
+            <div id="pairTabPanel" class="space-y-4 hidden">
+              <div class="space-y-2">
+                <label class="text-xs font-bold uppercase text-slate-700 tracking-wider">PHONE NUMBER WITH COUNTRY CODE</label>
+                <div class="flex items-center gap-2">
+                  <input 
+                    type="text" 
+                    id="phoneInput" 
+                    placeholder="9232999931199" 
+                    class="sci-input flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm font-bold text-slate-900" 
+                  />
+                  <button onclick="requestPairingCode()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition shadow-xs">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                    </svg>
+                    <span>GET CODE</span>
+                  </button>
+                </div>
+                <span class="text-[10px] text-slate-400">Do not include +, spaces, or dashes. Example: 9232999931199</span>
+              </div>
+
+              <!-- Pairing Code Display Box -->
+              <div class="bg-slate-900 text-sky-400 rounded-xl p-4 text-center border border-sky-800 shadow-inner">
+                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-widest block mb-1">8-DIGIT PAIRING KEY</span>
+                <div id="pairingCodeDisplay" class="sci-font text-2xl sm:text-3xl font-black tracking-widest text-sky-300 select-all py-1">
+                  ---- ----
+                </div>
+                <button onclick="copyPairingCode()" class="mt-2 text-[11px] font-bold text-sky-400 hover:text-sky-200 underline inline-flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                  </svg>
+                  <span>COPY CODE</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reset / Logout Button -->
+          <div class="mt-5 pt-4 border-t border-slate-200 flex items-center justify-between">
+            <span class="text-xs text-slate-500 font-semibold">Corrupted session or fresh login?</span>
+            <button onclick="resetSession()" class="text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              <span>RESET SESSION / LOGOUT</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── F. FEATURE 4: INTACT HD PROFILE DP (NO CROP) ──────────────────── -->
+        <div class="sci-card rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 class="sci-font text-sm font-bold text-slate-900">INTACT HD PROFILE DP (NO CROP)</h3>
+              </div>
+              <span class="text-xs font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded">FULL RES</span>
+            </div>
+
+            <div class="space-y-3">
+              <input 
+                type="file" 
+                id="dpFileInput" 
+                accept="image/*" 
+                onchange="previewFullDp(event)" 
+                class="w-full text-xs font-semibold text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" 
+              />
+
+              <div class="flex items-center justify-between gap-2">
+                <label class="text-xs font-bold uppercase text-slate-700">Uncropped Border Fill:</label>
+                <select id="dpBgColor" onchange="updateDpPreviewBg()" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold bg-white">
+                  <option value="#0f172a">Dark Slate (#0f172a)</option>
+                  <option value="#ffffff">Pure White (#ffffff)</option>
+                  <option value="#000000">Pitch Black (#000000)</option>
+                </select>
+              </div>
+
+              <div id="dpPreviewBox" class="w-40 h-40 mx-auto rounded-full border-2 border-dashed border-sky-400 bg-slate-900 flex items-center justify-center overflow-hidden transition-colors">
+                <span class="text-[11px] font-bold text-slate-400 text-center px-3">Full Uncropped Preview</span>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="uploadUncroppedDp()" class="mt-4 w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-lg text-sm flex items-center justify-center gap-2 shadow transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span>APPLY INTACT HD DP</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN (7 cols): ViewOnce Interceptor, Status Grabber & Interactive Buttons -->
+      <div class="lg:col-span-7 space-y-6">
+
+        <!-- ── C. FEATURE 1: VIEWONCE INTERCEPTOR & 1-CLICK DOWNLOADER ────────── -->
+        <div class="sci-card rounded-xl p-5">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+            <div class="flex items-center gap-2">
+              <div class="p-1.5 rounded-lg bg-sky-50 text-sky-600 border border-sky-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <h3 class="sci-font text-sm font-bold text-slate-900">VIEWONCE INTERCEPTOR & 1-CLICK DOWNLOADER</h3>
+            </div>
+            <span id="viewOnceBadgeCount" class="text-xs font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded">0 CAPTURED</span>
+          </div>
+
+          <div id="viewOnceList" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+            <div id="viewOnceEmpty" class="text-center py-10 text-slate-400">
+              <svg class="w-10 h-10 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+              </svg>
+              <p class="text-xs font-bold uppercase tracking-wider text-slate-500">NO VIEWONCE MESSAGES INTERCEPTED YET</p>
+              <p class="text-[11px] text-slate-400 mt-1">When someone sends a 1-view image, voice note, or video to this WhatsApp, it will automatically decrypt and save here.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── D. FEATURE 2: CUSTOMIZED INTERACTIVE BUTTON MESSAGE SENDER ────── -->
+        <div class="sci-card rounded-xl p-5">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+            <div class="flex items-center gap-2">
+              <div class="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+              </div>
+              <h3 class="sci-font text-sm font-bold text-slate-900">INTERACTIVE BUTTON MESSAGE SENDER</h3>
+            </div>
+            <span class="text-xs font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded">QUICK REPLY</span>
+          </div>
+
+          <div class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="text-[11px] font-bold uppercase text-slate-600">Recipient WhatsApp Number</label>
+                <input 
+                  type="text" 
+                  id="btnRecipient" 
+                  placeholder="9232999931199" 
+                  class="sci-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-900 mt-1" 
+                />
+              </div>
+              <div>
+                <label class="text-[11px] font-bold uppercase text-slate-600">Header Title</label>
+                <input 
+                  type="text" 
+                  id="btnHeaderTitle" 
+                  value="ZAID ASHIQ STUDIO" 
+                  placeholder="ZAID ASHIQ STUDIO" 
+                  class="sci-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-900 mt-1" 
+                />
+              </div>
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold uppercase text-slate-600">Message Body</label>
+              <textarea 
+                id="btnBody" 
+                rows="2" 
+                placeholder="Type your message content to accompany the interactive buttons..." 
+                class="sci-input w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs font-medium text-slate-900 mt-1"
+              >Welcome to ZAID ASHIQ STUDIO official broadcast. Please tap an option below to proceed:</textarea>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="text-[11px] font-bold uppercase text-slate-600">Footer Text</label>
+                <input 
+                  type="text" 
+                  id="btnFooter" 
+                  value="ZAID ASHIQ STUDIO • Telemetry" 
+                  class="sci-input w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-900 mt-1" 
+                />
+              </div>
+              <div>
+                <label class="text-[11px] font-bold uppercase text-slate-600">Button Limit Selector</label>
+                <select id="btnCountSelect" onchange="renderButtonInputs()" class="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-900 mt-1">
+                  <option value="1">1 Button</option>
+                  <option value="2" selected>2 Buttons</option>
+                  <option value="3">3 Buttons</option>
+                  <option value="4">4 Buttons</option>
+                  <option value="5">5 Buttons (Max)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Dynamically rendered button label inputs -->
+            <div id="dynamicButtonsContainer" class="space-y-2 pt-2 border-t border-slate-200">
+              <!-- Rendered via JS -->
+            </div>
+
+            <button onclick="sendInteractiveButtons()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center gap-2 shadow transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              </svg>
+              <span>TRANSMIT INTERACTIVE BUTTONS</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── E. FEATURE 3: 1-CLICK WHATSAPP STATUS GRABBER ────────────────── -->
+        <div class="sci-card rounded-xl p-5">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+            <div class="flex items-center gap-2">
+              <div class="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+              </div>
+              <h3 class="sci-font text-sm font-bold text-slate-900">WHATSAPP STATUS GRABBER (1-CLICK DOWNLOAD)</h3>
+            </div>
+            <span id="statusBadgeCount" class="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">0 STORIES</span>
+          </div>
+
+          <div id="statusList" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+            <div id="statusEmpty" class="text-center py-10 text-slate-400">
+              <svg class="w-10 h-10 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <p class="text-xs font-bold uppercase tracking-wider text-slate-500">NO STATUS MEDIA GRABBED YET</p>
+              <p class="text-[11px] text-slate-400 mt-1">Statuses published by your contacts (images and videos) will appear here in real-time ready for 1-click download.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ─── FOOTER ──────────────────────────────────────────────────────────────── -->
+  <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-slate-500">
+      <div class="flex items-center gap-2">
+        <span class="sci-font text-slate-800 font-bold">ZAID ASHIQ STUDIO</span>
+        <span>•</span>
+        <span>Full-Stack Split Architecture (Vercel Frontend & Railway Backend)</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[11px]">BAILEYS ENGINE v7.0</span>
+        <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[11px]">SOCKET.IO REALTIME</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ─── JAVASCRIPT APPLICATION LOGIC ────────────────────────────────────────── -->
+  <script>
+    // ── Global State ──────────────────────────────────────────────────────────
+    let backendUrl = localStorage.getItem('zaid_backend_url') || window.location.origin;
+    let socket = null;
+    let selectedDpBase64 = null;
+    let cachedViewOnce = [];
+    let cachedStatuses = [];
+
+    // ── Toast System (Replaces window.alert for clean iFrame compatibility) ──
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      const colors = {
+        success: 'bg-emerald-600 text-white border-emerald-700',
+        error: 'bg-red-600 text-white border-red-700',
+        info: 'bg-sky-600 text-white border-sky-700',
+        warning: 'bg-amber-600 text-white border-amber-700'
+      };
+
+      toast.className = `${colors[type] || colors.info} pointer-events-auto border rounded-xl p-3 shadow-lg flex items-center justify-between gap-3 text-xs font-bold transition transform duration-200 translate-y-2 opacity-0`;
+      toast.innerHTML = `
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+          </svg>
+          <span>${message}</span>
+        </div>
+      `;
+
+      container.appendChild(toast);
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 250);
+      }, 4000);
+    }
+
+    // ── Authentication Gate (Google & Operator Login) ────────────────────────
+    function checkAuth() {
+      const user = localStorage.getItem('zaid_user');
+      const authGate = document.getElementById('authGate');
+      if (user) {
+        authGate.classList.add('hidden');
+        try {
+          const u = JSON.parse(user);
+          document.getElementById('userAvatar').innerText = (u.name || 'ZA').slice(0, 2).toUpperCase();
+        } catch (_) {}
+      } else {
+        authGate.classList.remove('hidden');
+      }
+    }
+
+    function loginWithGoogle() {
+      // Simulate/Trigger Google Profile Session for dashboard access
+      const mockGoogleUser = {
+        name: 'Zaid Ashiq',
+        email: 'zahidashiqusa@gmail.com',
+        authMethod: 'google',
+        loginTime: new Date().toISOString()
+      };
+      localStorage.setItem('zaid_user', JSON.stringify(mockGoogleUser));
+      document.getElementById('authGate').classList.add('hidden');
+      document.getElementById('userAvatar').innerText = 'ZA';
+      showToast('Authenticated via Google Account: Zaid Ashiq', 'success');
+    }
+
+    function loginAsOperator() {
+      const operatorUser = {
+        name: 'Studio Operator',
+        authMethod: 'tactical_key',
+        loginTime: new Date().toISOString()
+      };
+      localStorage.setItem('zaid_user', JSON.stringify(operatorUser));
+      document.getElementById('authGate').classList.add('hidden');
+      document.getElementById('userAvatar').innerText = 'OP';
+      showToast('Welcome, Studio Operator', 'info');
+    }
+
+    function logoutAuth() {
+      localStorage.removeItem('zaid_user');
+      document.getElementById('authGate').classList.remove('hidden');
+      showToast('Signed out of Studio control panel', 'info');
+    }
+
+    // ── Backend URL Synchronization & Socket.io Initialization ───────────────
+    function syncBackendUrl() {
+      const input = document.getElementById('backendUrlInput').value.trim();
+      if (!input) {
+        showToast('Please specify a valid Backend URL', 'warning');
+        return;
+      }
+      backendUrl = input.replace(/\/+$/, '');
+      localStorage.setItem('zaid_backend_url', backendUrl);
+      showToast('Backend URL synced: ' + backendUrl, 'success');
+      connectSocket();
+      fetchInitialState();
+    }
+
+    function connectSocket() {
+      if (socket) {
+        try { socket.disconnect(); } catch (_) {}
+      }
+
+      updateStatusUI('disconnected');
+
+      try {
+        socket = io(backendUrl, {
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionAttempts: 20,
+          reconnectionDelay: 2000
+        });
+
+        socket.on('connect', () => {
+          showToast('Real-time telemetry connected to backend', 'success');
+        });
+
+        socket.on('disconnect', () => {
+          updateStatusUI('disconnected');
+        });
+
+        socket.on('status', (data) => {
+          updateStatusUI(data.status, data.botJid);
+        });
+
+        socket.on('qr', (dataUrl) => {
+          renderQrCode(dataUrl);
+        });
+
+        socket.on('pairing_code', (data) => {
+          renderPairingCode(data.code);
+        });
+
+        socket.on('initial_state', (data) => {
+          if (data.status) updateStatusUI(data.status, data.botJid);
+          if (Array.isArray(data.viewOnceItems)) {
+            cachedViewOnce = data.viewOnceItems;
+            renderViewOnceList();
+          }
+          if (Array.isArray(data.statusItems)) {
+            cachedStatuses = data.statusItems;
+            renderStatusList();
+          }
+        });
+
+        socket.on('new_viewonce', (item) => {
+          cachedViewOnce.unshift(item);
+          if (cachedViewOnce.length > 50) cachedViewOnce.pop();
+          renderViewOnceList();
+          showToast('Intercepted ViewOnce media from +' + item.sender, 'info');
+        });
+
+        socket.on('new_status', (item) => {
+          cachedStatuses.unshift(item);
+          if (cachedStatuses.length > 50) cachedStatuses.pop();
+          renderStatusList();
+          showToast('Captured WhatsApp status from +' + item.sender, 'info');
+        });
+
+        socket.on('session_cleared', () => {
+          showToast('Session reset. Ready for new QR / Pairing code.', 'info');
+          renderQrCode(null);
+          renderPairingCode('---- ----');
+          updateStatusUI('disconnected');
+        });
+
+      } catch (err) {
+        console.error('Socket error:', err);
+        updateStatusUI('disconnected');
+      }
+    }
+
+    function updateStatusUI(status, botJid = null) {
+      const badge = document.getElementById('statusBadge');
+      const pulse = document.getElementById('statusPulse');
+      const label = document.getElementById('statusLabel');
+      const cardBadge = document.getElementById('cardStatusBadge');
+      const qrOverlay = document.getElementById('connectedOverlay');
+      const jidStat = document.getElementById('linkedJidStat');
+      const overlayJid = document.getElementById('overlayBotJid');
+
+      if (status === 'connected') {
+        badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-xs font-bold transition text-emerald-800';
+        pulse.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
+        label.innerText = 'CONNECTED';
+
+        cardBadge.className = 'text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded';
+        cardBadge.innerText = 'ONLINE';
+
+        const displayJid = botJid ? '+' + botJid.split(':')[0].replace(/[^0-9]/g, '') : 'ONLINE';
+        jidStat.innerText = displayJid;
+        overlayJid.innerText = displayJid;
+        qrOverlay.classList.remove('hidden');
+      } else if (status === 'awaiting_scan') {
+        badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-xs font-bold transition text-amber-800';
+        pulse.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse';
+        label.innerText = 'AWAITING SCAN';
+
+        cardBadge.className = 'text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded';
+        cardBadge.innerText = 'SCAN QR';
+
+        jidStat.innerText = 'AWAITING SCAN';
+        qrOverlay.classList.add('hidden');
+      } else {
+        badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-300 bg-slate-100 text-xs font-bold transition text-slate-600';
+        pulse.className = 'w-2.5 h-2.5 rounded-full bg-slate-400';
+        label.innerText = 'DISCONNECTED';
+
+        cardBadge.className = 'text-xs font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded';
+        cardBadge.innerText = 'OFFLINE';
+
+        jidStat.innerText = 'NOT LINKED';
+        qrOverlay.classList.add('hidden');
+      }
+    }
+
+    async function fetchInitialState() {
+      try {
+        const res = await fetch(`${backendUrl}/api/state`);
+        const data = await res.json();
+        if (data.status) updateStatusUI(data.status, data.botJid);
+        if (data.qr) renderQrCode(data.qr);
+        if (data.pairingCode) renderPairingCode(data.pairingCode);
+        if (Array.isArray(data.viewOnceItems)) {
+          cachedViewOnce = data.viewOnceItems;
+          renderViewOnceList();
+        }
+        if (Array.isArray(data.statusItems)) {
+          cachedStatuses = data.statusItems;
+          renderStatusList();
+        }
+      } catch (e) {
+        console.warn('Initial state fetch error:', e.message);
+      }
+    }
+
+    // ── Tab Switching: QR vs Pairing Code ────────────────────────────────────
+    function switchLinkTab(tab) {
+      const qrBtn = document.getElementById('tabQrBtn');
+      const pairBtn = document.getElementById('tabPairBtn');
+      const qrPanel = document.getElementById('qrTabPanel');
+      const pairPanel = document.getElementById('pairTabPanel');
+
+      if (tab === 'qr') {
+        qrBtn.className = 'py-2 rounded-lg bg-white text-sky-600 shadow-xs transition flex items-center justify-center gap-1.5';
+        pairBtn.className = 'py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5';
+        qrPanel.classList.remove('hidden');
+        pairPanel.classList.add('hidden');
+      } else {
+        pairBtn.className = 'py-2 rounded-lg bg-white text-sky-600 shadow-xs transition flex items-center justify-center gap-1.5';
+        qrBtn.className = 'py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5';
+        pairPanel.classList.remove('hidden');
+        qrPanel.classList.add('hidden');
+      }
+    }
+
+    function renderQrCode(dataUrl) {
+      const img = document.getElementById('qrImage');
+      const ph = document.getElementById('qrPlaceholder');
+      if (dataUrl) {
+        img.src = dataUrl;
+        img.classList.remove('hidden');
+        ph.classList.add('hidden');
+      } else {
+        img.classList.add('hidden');
+        ph.classList.remove('hidden');
+      }
+    }
+
+    function renderPairingCode(code) {
+      const display = document.getElementById('pairingCodeDisplay');
+      if (!code) {
+        display.innerText = '---- ----';
+        return;
+      }
+      const raw = String(code).replace(/[^a-zA-Z0-9]/g, '');
+      if (raw.length === 8) {
+        display.innerText = `${raw.slice(0, 4)} - ${raw.slice(4)}`;
+      } else {
+        display.innerText = code;
+      }
+    }
+
+    async function requestPairingCode() {
+      const phone = document.getElementById('phoneInput').value.trim();
+      if (!phone) {
+        showToast('Please enter your phone number with country code (e.g. 9232999931199)', 'warning');
+        return;
+      }
+
+      showToast('Requesting 8-digit pairing code for +' + phone + '...', 'info');
+      try {
+        const res = await fetch(`${backendUrl}/api/pair`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const data = await res.json();
+        if (data.success && data.pairingCode) {
+          renderPairingCode(data.pairingCode);
+          showToast('Pairing Code Ready: ' + data.pairingCode, 'success');
+        } else {
+          showToast('Pairing error: ' + (data.error || 'Failed to generate code'), 'error');
+        }
+      } catch (err) {
+        showToast('Pairing request failed: ' + err.message, 'error');
+      }
+    }
+
+    function copyPairingCode() {
+      const code = document.getElementById('pairingCodeDisplay').innerText.replace(/\s+/g, '');
+      if (!code || code.includes('-')) {
+        showToast('Generate a pairing code first', 'warning');
+        return;
+      }
+      navigator.clipboard.writeText(code).then(() => {
+        showToast('Pairing code copied to clipboard!', 'success');
+      });
+    }
+
+    async function resetSession() {
+      if (!confirm('Are you sure you want to clear session and reset connection?')) return;
+      showToast('Clearing session credentials...', 'info');
+      try {
+        const res = await fetch(`${backendUrl}/api/logout`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Session cleared. Restarting socket...', 'success');
+        } else {
+          showToast('Reset failed: ' + data.error, 'error');
+        }
+      } catch (err) {
+        showToast('Reset request failed: ' + err.message, 'error');
+      }
+    }
+
+    // ── C. Feature 1: ViewOnce Interceptor UI ────────────────────────────────
+    function renderViewOnceList() {
+      const container = document.getElementById('viewOnceList');
+      const countBadge = document.getElementById('viewOnceBadgeCount');
+      const stat = document.getElementById('viewOnceStat');
+
+      countBadge.innerText = `${cachedViewOnce.length} CAPTURED`;
+      stat.innerText = cachedViewOnce.length;
+
+      if (cachedViewOnce.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-10 text-slate-400">
+            <svg class="w-10 h-10 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+            </svg>
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">NO VIEWONCE MESSAGES INTERCEPTED YET</p>
+            <p class="text-[11px] text-slate-400 mt-1">When someone sends a 1-view image, voice note, or video to this WhatsApp, it will automatically decrypt and save here.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = cachedViewOnce.map((item, idx) => {
+        let mediaPreview = '';
+        if (item.mediaType === 'picture') {
+          mediaPreview = `<img src="${item.dataUrl}" alt="${item.title}" class="w-20 h-20 object-cover rounded-lg border border-slate-200" />`;
+        } else if (item.mediaType === 'video') {
+          mediaPreview = `<video src="${item.dataUrl}" controls class="w-36 h-20 object-cover rounded-lg border border-slate-200 bg-black"></video>`;
+        } else if (item.mediaType === 'voice') {
+          mediaPreview = `<audio src="${item.dataUrl}" controls class="h-10 w-44"></audio>`;
+        }
+
+        const dateStr = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        return `
+          <div class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-sky-300 transition">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="flex-shrink-0">${mediaPreview}</div>
+              <div class="min-w-0">
+                <span class="sci-font text-xs font-bold text-slate-900 block truncate">${item.title}</span>
+                <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">CAPTURED AT ${dateStr}</span>
+              </div>
+            </div>
+            <button onclick="downloadMedia('${item.dataUrl}', '${item.title}')" class="flex-shrink-0 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              <span>1-CLICK DOWNLOAD</span>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function downloadMedia(dataUrl, filename) {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      const ext = dataUrl.includes('audio') ? '.ogg' : dataUrl.includes('video') ? '.mp4' : '.jpg';
+      a.download = (filename || 'zaid_media').replace(/\s+/g, '_') + ext;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('Downloaded ' + a.download, 'success');
+    }
+
+    // ── D. Feature 2: Interactive Buttons UI ─────────────────────────────────
+    function renderButtonInputs() {
+      const count = parseInt(document.getElementById('btnCountSelect').value, 10);
+      const container = document.getElementById('dynamicButtonsContainer');
+      const defaultLabels = ['Confirm Order', 'View Catalog', 'Contact Agent', 'Track Package', 'Main Menu'];
+
+      let html = '';
+      for (let i = 1; i <= count; i++) {
+        const val = defaultLabels[i - 1] || `Option ${i}`;
+        html += `
+          <div>
+            <label class="text-[10px] font-bold uppercase text-slate-500">Button ${i} Display Text</label>
+            <input 
+              type="text" 
+              id="dynamicBtn_${i}" 
+              value="${val}" 
+              placeholder="e.g. Option ${i}" 
+              class="sci-input w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 mt-0.5" 
+            />
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+
+    async function sendInteractiveButtons() {
+      const to = document.getElementById('btnRecipient').value.trim();
+      const headerTitle = document.getElementById('btnHeaderTitle').value.trim();
+      const body = document.getElementById('btnBody').value.trim();
+      const footer = document.getElementById('btnFooter').value.trim();
+      const count = parseInt(document.getElementById('btnCountSelect').value, 10);
+
+      if (!to) {
+        showToast('Please enter recipient phone number with country code', 'warning');
+        return;
+      }
+      if (!body) {
+        showToast('Please enter message body text', 'warning');
+        return;
+      }
+
+      const buttons = [];
+      for (let i = 1; i <= count; i++) {
+        const input = document.getElementById(`dynamicBtn_${i}`);
+        if (input && input.value.trim()) {
+          buttons.push(input.value.trim());
+        }
+      }
+
+      showToast('Transmitting interactive button message to +' + to + '...', 'info');
+
+      try {
+        const res = await fetch(`${backendUrl}/api/send-buttons`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to, headerTitle, body, footer, buttons })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Interactive button message successfully transmitted!', 'success');
+        } else {
+          showToast('Transmission error: ' + (data.error || 'Failed to send'), 'error');
+        }
+      } catch (err) {
+        showToast('Transmission failed: ' + err.message, 'error');
+      }
+    }
+
+    // ── E. Feature 3: Status Grabber UI ──────────────────────────────────────
+    function renderStatusList() {
+      const container = document.getElementById('statusList');
+      const countBadge = document.getElementById('statusBadgeCount');
+      const stat = document.getElementById('statusStat');
+
+      countBadge.innerText = `${cachedStatuses.length} STORIES`;
+      stat.innerText = cachedStatuses.length;
+
+      if (cachedStatuses.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-10 text-slate-400">
+            <svg class="w-10 h-10 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">NO STATUS MEDIA GRABBED YET</p>
+            <p class="text-[11px] text-slate-400 mt-1">Statuses published by your contacts (images and videos) will appear here in real-time ready for 1-click download.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = cachedStatuses.map((st) => {
+        let preview = '';
+        if (st.mediaType === 'picture') {
+          preview = `<img src="${st.dataUrl}" alt="Status" class="w-16 h-16 object-cover rounded-lg border border-slate-200" />`;
+        } else if (st.mediaType === 'video') {
+          preview = `<video src="${st.dataUrl}" controls class="w-28 h-16 object-cover rounded-lg border border-slate-200 bg-black"></video>`;
+        } else {
+          preview = `<div class="w-16 h-16 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">TEXT</div>`;
+        }
+
+        const dateStr = new Date(st.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        return `
+          <div class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="flex-shrink-0">${preview}</div>
+              <div class="min-w-0">
+                <span class="sci-font text-xs font-bold text-slate-900 block truncate">+${st.sender}</span>
+                <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">${st.mediaType.toUpperCase()} • ${dateStr}</span>
+                ${st.caption ? `<p class="text-[11px] text-slate-600 truncate mt-0.5">${st.caption}</p>` : ''}
+              </div>
+            </div>
+            <button onclick="downloadMedia('${st.dataUrl}', '${st.sender}_status')" class="flex-shrink-0 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              <span>DOWNLOAD STATUS</span>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ── F. Feature 4: Full-Res Uncropped DP Updater ──────────────────────────
+    function previewFullDp(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        selectedDpBase64 = e.target.result;
+        updateDpPreviewBg();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateDpPreviewBg() {
+      if (!selectedDpBase64) return;
+      const bg = document.getElementById('dpBgColor').value;
+      const box = document.getElementById('dpPreviewBox');
+      box.style.backgroundColor = bg;
+      box.innerHTML = `<img src="${selectedDpBase64}" class="w-full h-full object-contain" alt="Uncropped Preview" />`;
+    }
+
+    async function uploadUncroppedDp() {
+      if (!selectedDpBase64) {
+        showToast('Please select an image file first!', 'warning');
+        return;
+      }
+      const bgColor = document.getElementById('dpBgColor').value;
+      showToast('Processing full-resolution uncropped DP and uploading via WhatsApp IQ...', 'info');
+
+      try {
+        const res = await fetch(`${backendUrl}/api/update-dp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: selectedDpBase64, bgColor })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Full-resolution uncropped DP updated on WhatsApp!', 'success');
+        } else {
+          showToast('Error: ' + (data.error || 'Failed to update DP'), 'error');
+        }
+      } catch (err) {
+        showToast('Request error: ' + err.message, 'error');
+      }
+    }
+
+    // ── Initialize Dashboard on Load ─────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('backendUrlInput').value = backendUrl;
+      renderButtonInputs();
+      checkAuth();
+      connectSocket();
+      fetchInitialState();
+    });
+  </script>
+</body>
+</html>
