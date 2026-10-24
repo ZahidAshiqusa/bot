@@ -138,7 +138,7 @@
         </button>
 
         <!-- Quick Access / Tactical Operator Bypass -->
-        <button onclick="loginAsOperator()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md transition">
+        <button id="operatorBypassBtn" onclick="loginAsOperator()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
           </svg>
@@ -210,10 +210,13 @@
           <input 
             type="text" 
             id="backendUrlInput" 
-            placeholder="Railway Backend URL (e.g. https://your-app.railway.app)" 
+            placeholder="Render / Railway Backend URL (e.g. https://your-app.onrender.com)" 
             class="sci-input w-full bg-transparent text-xs text-slate-800 font-bold px-2 py-1 focus:outline-none" 
           />
-          <button onclick="syncBackendUrl()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-xs">
+          <span id="backendEnvBadge" class="hidden text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-md uppercase whitespace-nowrap">
+            VERCEL ENV
+          </span>
+          <button id="backendSyncBtn" onclick="syncBackendUrl()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-xs whitespace-nowrap">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
@@ -229,6 +232,14 @@
           <span id="statusPulse" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
           <span id="statusLabel" class="tracking-wider uppercase text-slate-700">INITIALIZING</span>
         </div>
+
+        <!-- Cloud & Production Settings Button -->
+        <button onclick="openCloudModal()" title="Cloud & Production Configurations" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 transition">
+          <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" />
+          </svg>
+          <span class="hidden sm:inline">CLOUD & BACKUP</span>
+        </button>
 
         <!-- User Profile & Sign Out -->
         <div id="userPanel" class="flex items-center gap-2 pl-2 border-l border-slate-200">
@@ -409,8 +420,26 @@
 
             <!-- Tab 3: Session ID Panel -->
             <div id="sessionTabPanel" class="space-y-4 hidden">
+              <!-- One-Time Session Lock Status Banner -->
+              <div id="sessionLockBanner" class="hidden p-3 bg-emerald-50 border border-emerald-300 rounded-xl space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                    <span>SESSION BOUND & LOCKED</span>
+                  </span>
+                  <span class="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded">1-TIME LOCK</span>
+                </div>
+                <p id="sessionLockDetails" class="text-[11px] text-emerald-700 font-medium"></p>
+                <p class="text-[10px] text-emerald-600">Security Policy: Each Google account can only register a WhatsApp Session ID one time.</p>
+              </div>
+
               <div class="space-y-2">
-                <label class="text-xs font-bold uppercase text-slate-700 tracking-wider">PASTE WHATSAPP SESSION ID</label>
+                <label class="text-xs font-bold uppercase text-slate-700 tracking-wider flex items-center justify-between">
+                  <span>PASTE WHATSAPP SESSION ID</span>
+                  <span id="sessionAccountLabel" class="text-[10px] font-semibold text-sky-600">Locked to Google Account</span>
+                </label>
                 <textarea 
                   id="sessionIdInput" 
                   rows="3" 
@@ -421,13 +450,13 @@
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button onclick="applySessionId()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-xs">
+                <button id="applySessionBtn" onclick="applySessionId()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow-xs">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
                   </svg>
-                  <span>CONNECT SESSION ID</span>
+                  <span id="applySessionBtnText">CONNECT SESSION ID</span>
                 </button>
-                <button onclick="exportSessionId()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                <button id="exportSessionBtn" onclick="exportSessionId()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
                   </svg>
@@ -522,6 +551,228 @@
               <p class="text-xs font-bold uppercase tracking-wider text-slate-500">NO VIEWONCE MESSAGES INTERCEPTED YET</p>
               <p class="text-[11px] text-slate-400 mt-1">When someone sends a 1-view image, voice note, or video to this WhatsApp, it will automatically decrypt and save here.</p>
             </div>
+          </div>
+        </div>
+
+        <!-- ── G. FEATURE 5 & 6: VOICE NOTE & VIDEO NOTE TRANSMITTER (PTT / PTV) ── -->
+        <div class="sci-card rounded-xl p-5">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+            <div class="flex items-center gap-2">
+              <div class="p-1.5 rounded-lg bg-sky-50 text-sky-600 border border-sky-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="sci-font text-sm font-bold text-slate-900">VOICE NOTE & VIDEO NOTE TRANSMITTER</h3>
+                <p class="text-[10px] text-slate-400 font-medium">DISPATCH AUTHENTIC PTT WAVEFORMS & CIRCULAR VIDEO NOTES</p>
+              </div>
+            </div>
+            <span class="text-xs font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded">PTT • PTV</span>
+          </div>
+
+          <!-- Selector: Voice Note vs Video Note -->
+          <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl mb-4 text-xs font-bold">
+            <button id="noteTabVoiceBtn" onclick="switchNoteTab('voice')" class="py-2 rounded-lg bg-white text-sky-600 shadow-xs transition flex items-center justify-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+              </svg>
+              <span>VOICE NOTE (PTT)</span>
+            </button>
+            <button id="noteTabVideoBtn" onclick="switchNoteTab('video')" class="py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              <span>VIDEO NOTE (PTV)</span>
+            </button>
+          </div>
+
+          <!-- Recipient Number Field (Common) -->
+          <div class="mb-4">
+            <label class="text-[11px] font-bold uppercase text-slate-600 flex items-center justify-between">
+              <span>Target WhatsApp Number</span>
+              <span class="text-[10px] text-slate-400 font-normal">With country code (e.g. 9232999931199)</span>
+            </label>
+            <div class="flex items-center gap-2 mt-1">
+              <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                  </svg>
+                </div>
+                <input 
+                  type="text" 
+                  id="noteRecipientNumber" 
+                  placeholder="9232999931199" 
+                  class="sci-input w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-1.5 text-xs font-bold text-slate-900" 
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- PANEL 1: VOICE NOTE (PTT) -->
+          <div id="voiceNotePanel" class="space-y-4">
+            <!-- Voice Input Mode Toggle: Record Live vs Upload Audio File -->
+            <div class="flex items-center justify-between text-xs font-bold border-b border-slate-200 pb-2">
+              <span class="text-slate-500 uppercase tracking-wider text-[10px]">Select Audio Source:</span>
+              <div class="inline-flex rounded-lg bg-slate-100 p-0.5">
+                <button id="voiceModeRecordBtn" onclick="switchVoiceMode('record')" class="px-3 py-1 rounded-md bg-white text-sky-600 shadow-2xs font-bold transition text-[11px]">Record Mic</button>
+                <button id="voiceModeUploadBtn" onclick="switchVoiceMode('upload')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 font-bold transition text-[11px]">Upload File</button>
+              </div>
+            </div>
+
+            <!-- Voice Mode A: Live Mic Recording -->
+            <div id="voiceRecordSection" class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 text-center">
+              <div class="flex items-center justify-center gap-3">
+                <span id="voiceRecPulse" class="w-3 h-3 rounded-full bg-slate-300"></span>
+                <span id="voiceRecTimer" class="sci-font text-xl font-black text-slate-800 tracking-wider">00:00</span>
+              </div>
+              <p id="voiceRecStatus" class="text-xs text-slate-400 font-medium">Click button to begin recording via microphone</p>
+
+              <div class="flex items-center justify-center gap-2 pt-1">
+                <button id="startVoiceRecBtn" onclick="startVoiceRecording()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                  </svg>
+                  <span id="startVoiceRecLabel">RECORD VOICE NOTE</span>
+                </button>
+                <button id="stopVoiceRecBtn" onclick="stopVoiceRecording()" class="hidden bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow transition animate-pulse">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9A2.25 2.25 0 015.25 16.5v-9z" />
+                  </svg>
+                  <span>STOP RECORDING</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Voice Mode B: Upload Audio File -->
+            <div id="voiceUploadSection" class="hidden p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <label class="text-[11px] font-bold uppercase text-slate-600 block">Select Audio File (MP3, OGG, WAV, M4A, AAC)</label>
+              <input 
+                type="file" 
+                id="voiceFileInput" 
+                accept="audio/*,.mp3,.ogg,.wav,.m4a,.aac" 
+                onchange="handleVoiceFileUpload(event)" 
+                class="w-full text-xs font-semibold text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" 
+              />
+              <span class="text-[10px] text-slate-400 block">Auto-encoded to WhatsApp Push-to-Talk waveform format.</span>
+            </div>
+
+            <!-- Audio Preview Player -->
+            <div id="voicePreviewBox" class="hidden p-3 bg-white border border-slate-200 rounded-xl space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-sky-700 uppercase tracking-wider flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  VOICE NOTE PREVIEW (AUTHENTIC PTT WAVEFORM)
+                </span>
+                <button onclick="clearVoicePreview()" class="text-[10px] text-red-500 hover:text-red-700 font-bold underline">CLEAR</button>
+              </div>
+              <audio id="voiceAudioPlayer" controls class="w-full h-9"></audio>
+            </div>
+
+            <!-- Transmit Voice Note Button -->
+            <button onclick="transmitVoiceNote()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center gap-2 shadow transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              </svg>
+              <span>TRANSMIT VOICE NOTE (PTT)</span>
+            </button>
+          </div>
+
+          <!-- PANEL 2: VIDEO NOTE (PTV) -->
+          <div id="videoNotePanel" class="space-y-4 hidden">
+            <!-- Video Input Mode Toggle: Record Live vs Upload Video File -->
+            <div class="flex items-center justify-between text-xs font-bold border-b border-slate-200 pb-2">
+              <span class="text-slate-500 uppercase tracking-wider text-[10px]">Select Video Source:</span>
+              <div class="inline-flex rounded-lg bg-slate-100 p-0.5">
+                <button id="videoModeRecordBtn" onclick="switchVideoMode('record')" class="px-3 py-1 rounded-md bg-white text-sky-600 shadow-2xs font-bold transition text-[11px]">Record Camera</button>
+                <button id="videoModeUploadBtn" onclick="switchVideoMode('upload')" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 font-bold transition text-[11px]">Upload File</button>
+              </div>
+            </div>
+
+            <!-- Video Mode A: Live Camera Recording (Circular Viewfinder) -->
+            <div id="videoRecordSection" class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 text-center">
+              <!-- WhatsApp Style Circular Camera Viewfinder -->
+              <div class="relative w-36 h-36 mx-auto rounded-full border-4 border-sky-400 bg-slate-900 overflow-hidden shadow-inner flex items-center justify-center">
+                <video id="liveCameraStream" autoplay muted playsinline class="w-full h-full object-cover hidden"></video>
+                <div id="cameraStandbyPlaceholder" class="p-3 text-slate-400 flex flex-col items-center">
+                  <svg class="w-8 h-8 text-slate-500 mb-1" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                  </svg>
+                  <span class="text-[9px] font-bold uppercase tracking-wider text-slate-500">CAMERA STANDBY</span>
+                </div>
+                <div id="videoRecRing" class="hidden absolute inset-0 rounded-full border-4 border-red-500 animate-ping pointer-events-none"></div>
+              </div>
+
+              <div class="flex items-center justify-center gap-3">
+                <span id="videoRecPulse" class="w-3 h-3 rounded-full bg-slate-300"></span>
+                <span id="videoRecTimer" class="sci-font text-xl font-black text-slate-800 tracking-wider">00:00</span>
+              </div>
+              <p id="videoRecStatus" class="text-xs text-slate-400 font-medium">Activate camera to shoot instant circular video note</p>
+
+              <div class="flex items-center justify-center gap-2 pt-1">
+                <button id="toggleCameraBtn" onclick="toggleCamera()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-3 rounded-xl text-xs flex items-center gap-1.5 transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                  </svg>
+                  <span id="toggleCameraLabel">ENABLE CAMERA</span>
+                </button>
+                <button id="startVideoRecBtn" onclick="startVideoRecording()" disabled class="bg-sky-600 opacity-50 cursor-not-allowed hover:bg-sky-700 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center gap-1.5 shadow transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                  </svg>
+                  <span>RECORD NOTE</span>
+                </button>
+                <button id="stopVideoRecBtn" onclick="stopVideoRecording()" class="hidden bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center gap-1.5 shadow transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9A2.25 2.25 0 015.25 16.5v-9z" />
+                  </svg>
+                  <span>STOP</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Video Mode B: Upload Video File -->
+            <div id="videoUploadSection" class="hidden p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <label class="text-[11px] font-bold uppercase text-slate-600 block">Select Video File (MP4, WEBM, MOV)</label>
+              <input 
+                type="file" 
+                id="videoFileInput" 
+                accept="video/*,.mp4,.webm,.mov" 
+                onchange="handleVideoFileUpload(event)" 
+                class="w-full text-xs font-semibold text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" 
+              />
+              <span class="text-[10px] text-slate-400 block">Delivers as an authentic circular instant WhatsApp video message (PTV).</span>
+            </div>
+
+            <!-- Circular Video Preview Player -->
+            <div id="videoPreviewBox" class="hidden p-4 bg-white border border-slate-200 rounded-xl space-y-3 text-center">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-sky-700 uppercase tracking-wider flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  CIRCULAR VIDEO NOTE PREVIEW (PTV)
+                </span>
+                <button onclick="clearVideoPreview()" class="text-[10px] text-red-500 hover:text-red-700 font-bold underline">CLEAR</button>
+              </div>
+              
+              <!-- Circular Player matching WhatsApp Video Note -->
+              <div class="w-36 h-36 mx-auto rounded-full border-4 border-sky-500 bg-black overflow-hidden shadow-md">
+                <video id="videoNotePlayer" controls loop playsinline class="w-full h-full object-cover"></video>
+              </div>
+            </div>
+
+            <!-- Transmit Video Note Button -->
+            <button onclick="transmitVideoNote()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-lg text-xs flex items-center justify-center gap-2 shadow transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              </svg>
+              <span>TRANSMIT VIDEO NOTE (PTV)</span>
+            </button>
           </div>
         </div>
 
@@ -637,7 +888,210 @@
 
     </div>
 
+    <!-- ── F. FEATURE 7: WHATSAPP ONLINE TRACER (LIVE PRESENCE TELEMETRY) ── -->
+    <div class="sci-card rounded-xl p-5 md:p-6 mt-6 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between border-b border-slate-200 pb-4 mb-4 gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2 rounded-lg bg-sky-50 text-sky-600 border border-sky-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.348 14.652a3.75 3.75 0 010-5.304m5.304 0a3.75 3.75 0 010 5.304m-7.425 2.121a6.75 6.75 0 010-9.546m9.546 0a6.75 6.75 0 010 9.546M12 12h.008v.008H12V12z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="sci-font text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>ONLINE TRACER (LIVE CONTACT PRESENCE TELEMETRY)</span>
+              <span id="tracerTargetCount" class="text-[10px] font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded-sm uppercase tracking-wider">0 TARGETS</span>
+            </h3>
+            <p class="text-xs text-slate-500 font-semibold">Monitor real-time online/offline status, typing state, and session duration for target numbers via WhatsApp presence events.</p>
+          </div>
+        </div>
+
+        <!-- Controls / Utilities -->
+        <div class="flex items-center gap-2">
+          <button onclick="exportTracerLogs()" title="Export Logs as JSON" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            <span>EXPORT</span>
+          </button>
+          <button onclick="clearTracerLogsPrompt()" title="Clear Timeline Logs" class="bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+            <span>CLEAR</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Add Target Input Bar -->
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5">
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+          <div class="sm:col-span-6">
+            <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Target WhatsApp Number</label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-mono text-xs">+</span>
+              <input 
+                type="text" 
+                id="tracerNumberInput" 
+                placeholder="9232999931199 (Country code + phone digits, no spaces)" 
+                class="sci-input w-full pl-7 pr-3 py-2 text-xs font-mono font-bold bg-white text-slate-800 rounded-lg border border-slate-300 focus:outline-none focus:border-sky-500" 
+              />
+            </div>
+          </div>
+          <div class="sm:col-span-4">
+            <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Target Label / Name (Optional)</label>
+            <input 
+              type="text" 
+              id="tracerNameInput" 
+              placeholder="e.g. VIP Contact / Agent 1" 
+              class="sci-input w-full px-3 py-2 text-xs font-bold bg-white text-slate-800 rounded-lg border border-slate-300 focus:outline-none focus:border-sky-500" 
+            />
+          </div>
+          <div class="sm:col-span-2">
+            <button onclick="startTrackingNumber()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              <span>TRACK</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Monitored Targets Cards -->
+      <div class="mb-5">
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="text-xs font-bold uppercase text-slate-600 tracking-wider">Active Monitored Numbers</h4>
+          <span class="text-[11px] text-slate-400 font-semibold">Subscribed targets maintain persistent real-time presence listeners</span>
+        </div>
+        <div id="tracerTargetsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <!-- Dynamically populated via renderTracerTargets() -->
+        </div>
+      </div>
+
+      <!-- Live Presence Timeline Log Feed -->
+      <div>
+        <div class="flex flex-wrap items-center justify-between mb-2.5 gap-2">
+          <h4 class="text-xs font-bold uppercase text-slate-600 tracking-wider flex items-center gap-2">
+            <span>PRESENCE TIMELINE AUDIT STREAM</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          </h4>
+          <div class="w-full sm:w-64">
+            <input 
+              type="text" 
+              id="tracerLogFilterInput" 
+              oninput="filterTracerLogs()" 
+              placeholder="Filter logs by number..." 
+              class="sci-input w-full px-2.5 py-1 text-xs font-mono bg-white text-slate-800 rounded-md border border-slate-300 focus:outline-none focus:border-sky-500" 
+            />
+          </div>
+        </div>
+
+        <div id="tracerLogsContainer" class="bg-slate-900 border border-slate-800 rounded-xl p-3 sm:p-4 max-h-80 overflow-y-auto font-mono text-xs space-y-1.5 shadow-inner">
+          <!-- Dynamically populated via renderTracerLogs() -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── G. FEATURE 8: DELETED MESSAGES VAULT (ANTI-DELETE AUDIT) ──────── -->
+    <div class="sci-card rounded-xl p-5 md:p-6 mt-6 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between border-b border-slate-200 pb-4 mb-4 gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2 rounded-lg bg-red-50 text-red-600 border border-red-200">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="sci-font text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>DELETED MESSAGES VAULT (ANTI-DELETE AUDIT)</span>
+              <span id="deletedTotalCountBadge" class="text-[10px] font-bold bg-red-100 text-red-800 px-2 py-0.5 rounded-sm uppercase tracking-wider">0 DELETED MSGS</span>
+            </h3>
+            <p class="text-xs text-slate-500 font-semibold">Intercepts and recovers WhatsApp messages deleted by senders (photos, videos, voice notes, and text) in direct private conversations.</p>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-2">
+          <button onclick="exportDeletedMessages()" title="Export Audit Log as JSON" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            <span>EXPORT</span>
+          </button>
+          <button onclick="clearDeletedMessagesPrompt()" title="Clear Audit Vault" class="bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+            <span>CLEAR VAULT</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Metrics and Filters Row -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
+        <!-- Media Type Breakdown Chips -->
+        <div class="flex flex-wrap items-center gap-1.5 text-xs">
+          <button onclick="setDeletedTypeFilter('all')" id="filterBtn_all" class="px-2.5 py-1 rounded-lg font-bold bg-white text-slate-800 border border-slate-300 shadow-xs transition">
+            All (<span id="count_all">0</span>)
+          </button>
+          <button onclick="setDeletedTypeFilter('photo')" id="filterBtn_photo" class="px-2.5 py-1 rounded-lg font-bold bg-transparent text-slate-600 hover:bg-slate-200 border border-transparent transition">
+            Photos (<span id="count_photo">0</span>)
+          </button>
+          <button onclick="setDeletedTypeFilter('video')" id="filterBtn_video" class="px-2.5 py-1 rounded-lg font-bold bg-transparent text-slate-600 hover:bg-slate-200 border border-transparent transition">
+            Videos (<span id="count_video">0</span>)
+          </button>
+          <button onclick="setDeletedTypeFilter('voice')" id="filterBtn_voice" class="px-2.5 py-1 rounded-lg font-bold bg-transparent text-slate-600 hover:bg-slate-200 border border-transparent transition">
+            Voice Notes (<span id="count_voice">0</span>)
+          </button>
+          <button onclick="setDeletedTypeFilter('text')" id="filterBtn_text" class="px-2.5 py-1 rounded-lg font-bold bg-transparent text-slate-600 hover:bg-slate-200 border border-transparent transition">
+            Text (<span id="count_text">0</span>)
+          </button>
+        </div>
+
+        <!-- Phone Number Search Filter -->
+        <div class="w-full sm:w-64">
+          <input 
+            type="text" 
+            id="deletedNumberFilterInput" 
+            oninput="renderDeletedMessages()" 
+            placeholder="Filter by sender digits (+92...)..." 
+            class="sci-input w-full px-2.5 py-1 text-xs font-mono bg-white text-slate-800 rounded-lg border border-slate-300 focus:outline-none focus:border-red-500" 
+          />
+        </div>
+      </div>
+
+      <!-- Deleted Messages Stream Container -->
+      <div id="deletedMessagesList" class="space-y-3 max-h-[550px] overflow-y-auto pr-1">
+        <!-- Dynamically populated via renderDeletedMessages() -->
+      </div>
+    </div>
+
   </main>
+
+  <!-- ─── IMAGE LIGHTBOX MODAL ────────────────────────────────────────────────── -->
+  <div id="deletedImageModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md" onclick="closeDeletedImageModal()">
+    <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between w-full mb-2 px-2 text-white text-xs font-bold">
+        <span id="lightboxSenderLabel">DELETED PHOTO</span>
+        <button onclick="closeDeletedImageModal()" class="p-1 rounded bg-white/20 hover:bg-white/40 text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <img id="lightboxImage" src="" alt="Deleted Photo Preview" class="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl border border-slate-700 bg-black" />
+      <div class="mt-3 flex items-center gap-3">
+        <a id="lightboxDownloadLink" href="#" download="deleted_photo.jpg" class="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-2 shadow-lg transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+          <span>DOWNLOAD ORIGINAL PHOTO</span>
+        </a>
+      </div>
+    </div>
+  </div>
 
   <!-- ─── FOOTER ──────────────────────────────────────────────────────────────── -->
   <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
@@ -645,7 +1099,7 @@
       <div class="flex items-center gap-2">
         <span class="sci-font text-slate-800 font-bold">ZAID ASHIQ STUDIO</span>
         <span>•</span>
-        <span>Full-Stack Split Architecture (Vercel Frontend & Railway Backend)</span>
+        <span>Full-Stack Split Architecture (Vercel Frontend & Render/Railway Backend)</span>
       </div>
       <div class="flex items-center gap-3">
         <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[11px]">BAILEYS ENGINE v7.0</span>
@@ -653,6 +1107,105 @@
       </div>
     </div>
   </footer>
+
+  <!-- ─── CLOUD INTEGRATIONS & PRODUCTION SETTINGS MODAL ───────────────────────── -->
+  <div id="cloudModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+    <div class="sci-card w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
+      <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2 rounded-lg bg-sky-100 text-sky-700">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="sci-font text-base font-bold text-slate-900">MULTI-CLOUD PRODUCTION SUITE</h3>
+            <p class="text-xs text-slate-500 font-semibold">Vercel · Render · Railway · GitHub · Cloudinary · Google Auth</p>
+          </div>
+        </div>
+        <button onclick="closeCloudModal()" class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="p-6 overflow-y-auto space-y-5 text-xs text-slate-700">
+        <!-- Status Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          
+          <!-- Card 1: Render / Railway Backend -->
+          <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-800 uppercase tracking-wider" id="cloudBackendTitle">Render Backend</span>
+              <span id="cloudRailwayBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">CHECKING</span>
+            </div>
+            <p class="text-[11px] text-slate-500 font-mono truncate" id="cloudRailwayUrl">Connecting...</p>
+            <p class="text-[11px] text-slate-500" id="cloudRailwayUptime">Uptime: --</p>
+          </div>
+
+          <!-- Card 2: Google Authentication -->
+          <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-800 uppercase tracking-wider">Google OAuth Gate</span>
+              <span id="cloudGoogleBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">ACTIVE</span>
+            </div>
+            <p class="text-[11px] text-slate-500 font-mono truncate" id="cloudGoogleClient">Client ID Configured</p>
+            <p class="text-[11px] text-slate-500" id="cloudGoogleUser">Operator: zahidashiqusa@gmail.com</p>
+          </div>
+
+          <!-- Card 3: Cloudinary CDN Hosting -->
+          <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-800 uppercase tracking-wider">Cloudinary Media CDN</span>
+              <span id="cloudCloudinaryBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">NOT CONFIGURED</span>
+            </div>
+            <p class="text-[11px] text-slate-500">Hosts voice notes, video notes, and uncropped profile pictures via cloud CDN.</p>
+            <p class="text-[11px] font-mono text-slate-400" id="cloudCloudinaryName">Env: CLOUDINARY_URL</p>
+          </div>
+
+          <!-- Card 4: GitHub Session Backup -->
+          <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-800 uppercase tracking-wider">GitHub Session Backup</span>
+              <span id="cloudGithubBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700">NOT CONFIGURED</span>
+            </div>
+            <p class="text-[11px] text-slate-500">Auto-saves session credentials to a private secret Gist to prevent data loss on container restarts.</p>
+            <div class="pt-1 flex items-center gap-2">
+              <button id="cloudBackupNowBtn" onclick="triggerGitHubBackup()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2.5 py-1 rounded text-[11px] transition shadow-xs">
+                BACKUP SESSION NOW
+              </button>
+              <a id="cloudGistLink" href="#" target="_blank" class="hidden text-sky-600 hover:underline text-[11px] font-bold">VIEW GIST</a>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Environment Variables Reference -->
+        <div class="p-4 rounded-xl border border-slate-200 bg-slate-900 text-slate-100 font-mono text-[11px] space-y-2">
+          <div class="flex items-center justify-between text-slate-400 font-bold uppercase tracking-wider text-[10px] border-b border-slate-800 pb-1.5">
+            <span>Production Environment Variables Checklist</span>
+            <span>Vercel / Render / Railway</span>
+          </div>
+          <div class="space-y-1 text-slate-300">
+            <div><span class="text-sky-400">RENDER_BACKEND_URL</span>: https://your-bot.onrender.com (in Vercel)</div>
+            <div><span class="text-sky-400">RAILWAY_BACKEND_URL</span>: https://your-railway-app.up.railway.app (fallback)</div>
+            <div><span class="text-sky-400">GOOGLE_CLIENT_ID</span>: &lt;your-google-oauth-client-id&gt;.apps.googleusercontent.com</div>
+            <div><span class="text-sky-400">CLOUDINARY_URL</span>: cloudinary://API_KEY:API_SECRET@CLOUD_NAME</div>
+            <div><span class="text-sky-400">GITHUB_TOKEN</span>: ghp_xxxxxxxxxxxxxxxxxxxx (Personal Access Token with gist scope)</div>
+            <div><span class="text-sky-400">GITHUB_GIST_ID</span>: (Optional, auto-generated on first backup)</div>
+            <div><span class="text-sky-400">SESSION_ID</span>: (WhatsApp Baileys Session credentials)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+        <button onclick="closeCloudModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg transition">
+          CLOSE
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- ─── JAVASCRIPT APPLICATION LOGIC ────────────────────────────────────────── -->
   <script>
@@ -662,6 +1215,11 @@
     let selectedDpBase64 = null;
     let cachedViewOnce = [];
     let cachedStatuses = [];
+    let trackedTargets = [];
+    let tracerLogs = [];
+    let cloudStatus = null;
+    let deletedMessages = [];
+    let currentDeletedFilterType = 'all';
 
     // ── Toast System (Replaces window.alert for clean iFrame compatibility) ──
     function showToast(message, type = 'info') {
@@ -698,6 +1256,54 @@
 
     // ── Authentication Gate (Google & Operator Login) ────────────────────────
     let googleClientId = localStorage.getItem('google_client_id') || '';
+    let isVercelEnvConfigured = false;
+    let isStrictGoogleAuth = false;
+
+    async function loadVercelEnvironment() {
+      try {
+        const res = await fetch('/api/env');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success) {
+            // 1. Auto-configure Render / Railway Backend URL from Vercel
+            if (data.backendUrl && data.backendUrl.trim()) {
+              backendUrl = data.backendUrl.trim().replace(/\/+$/, '');
+              localStorage.setItem('zaid_backend_url', backendUrl);
+              isVercelEnvConfigured = true;
+
+              const urlInput = document.getElementById('backendUrlInput');
+              const envBadge = document.getElementById('backendEnvBadge');
+              if (urlInput) {
+                urlInput.value = backendUrl;
+                urlInput.readOnly = true;
+                urlInput.title = 'Configured via Vercel Environment (RENDER_BACKEND_URL / RAILWAY_BACKEND_URL)';
+              }
+              if (envBadge) {
+                envBadge.classList.remove('hidden');
+                envBadge.title = 'Synchronized with Vercel RENDER_BACKEND_URL';
+              }
+              console.log('[VERCEL-ENV] Backend URL auto-synced:', backendUrl);
+            }
+
+            // 2. Auto-configure Google OAuth Client ID from Vercel
+            if (data.googleClientId && data.googleClientId.trim()) {
+              googleClientId = data.googleClientId.trim();
+              localStorage.setItem('google_client_id', googleClientId);
+              isStrictGoogleAuth = true;
+
+              // Enforce strict Google Login by hiding operator bypass
+              const bypassBtn = document.getElementById('operatorBypassBtn');
+              if (bypassBtn) {
+                bypassBtn.classList.add('hidden');
+              }
+              console.log('[VERCEL-ENV] Google Client ID auto-configured (Strict Google Mode Active)');
+            }
+          }
+        }
+      } catch (e) {
+        console.log('[VERCEL-ENV] Environment probe note:', e.message);
+      }
+    }
 
     function toggleGoogleConfig() {
       const box = document.getElementById('googleConfigBox');
@@ -742,11 +1348,74 @@
             });
             container.classList.remove('hidden');
             document.getElementById('googleCustomBtn').classList.add('hidden');
+
+            // Strictly enforce Google Login when Client ID is configured
+            const bypassBtn = document.getElementById('operatorBypassBtn');
+            if (bypassBtn && (isStrictGoogleAuth || googleClientId)) {
+              bypassBtn.classList.add('hidden');
+            }
+
             console.log('[GOOGLE-AUTH] Initialized with Client ID:', googleClientId);
           } catch (gisErr) {
             console.warn('[GOOGLE-AUTH] GSI init error:', gisErr.message);
           }
         }
+      }
+    }
+
+    async function checkAccountSessionBinding() {
+      const userStr = localStorage.getItem('zaid_user');
+      if (!userStr) return;
+      try {
+        const user = JSON.parse(userStr);
+        const sub = user.sub || user.email;
+        if (!sub) return;
+
+        const res = await fetch(`${backendUrl}/api/account-session-status?sub=${encodeURIComponent(sub)}&email=${encodeURIComponent(user.email || '')}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const banner = document.getElementById('sessionLockBanner');
+        const details = document.getElementById('sessionLockDetails');
+        const input = document.getElementById('sessionIdInput');
+        const applyBtn = document.getElementById('applySessionBtn');
+        const btnText = document.getElementById('applySessionBtnText');
+        const accountLabel = document.getElementById('sessionAccountLabel');
+
+        if (accountLabel && user.email) {
+          accountLabel.innerText = `Account: ${user.email}`;
+        }
+
+        if (data.isBound && data.binding) {
+          if (banner) banner.classList.remove('hidden');
+          if (details) {
+            const dateStr = new Date(data.binding.boundAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            details.innerText = `Securely bound to: ${data.binding.email || user.email} (${dateStr})`;
+          }
+          if (input) {
+            input.value = '•••••••••••••••••••••••••••••••••••••••••••••••••• (SESSION LOCKED)';
+            input.disabled = true;
+            input.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+          }
+          if (applyBtn) {
+            applyBtn.disabled = true;
+            applyBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            if (btnText) btnText.innerText = 'SESSION LOCKED TO ACCOUNT';
+          }
+        } else {
+          if (banner) banner.classList.add('hidden');
+          if (input) {
+            input.disabled = false;
+            input.classList.remove('bg-slate-100', 'text-slate-400', 'cursor-not-allowed');
+          }
+          if (applyBtn) {
+            applyBtn.disabled = false;
+            applyBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            if (btnText) btnText.innerText = 'CONNECT SESSION ID';
+          }
+        }
+      } catch (err) {
+        console.warn('[SESSION-BINDING] Status check error:', err.message);
       }
     }
 
@@ -771,6 +1440,7 @@
         localStorage.setItem('zaid_user', JSON.stringify(googleUser));
         document.getElementById('authGate').classList.add('hidden');
         updateUserUI(googleUser);
+        checkAccountSessionBinding();
         showToast('Google Sign-In verified: ' + googleUser.name + ' (' + googleUser.email + ')', 'success');
       } catch (jwtErr) {
         console.error('[GOOGLE-AUTH] JWT parse error:', jwtErr);
@@ -932,6 +1602,64 @@
           showToast('Captured WhatsApp status from +' + item.sender, 'info');
         });
 
+        // Online Tracer socket listeners
+        socket.on('online_tracer_event', (logEntry) => {
+          tracerLogs.unshift(logEntry);
+          if (tracerLogs.length > 300) tracerLogs.pop();
+          renderTracerLogs();
+          const target = trackedTargets.find(t => t.jid === logEntry.jid || t.number === logEntry.number);
+          if (target) {
+            target.currentStatus = logEntry.rawPresence || logEntry.statusLabel;
+            target.lastSeenFormatted = logEntry.timeFormatted;
+            if (logEntry.durationFormatted) target.lastDuration = logEntry.durationFormatted;
+            renderTracerTargets();
+          }
+        });
+
+        socket.on('online_tracer_target_updated', (target) => {
+          const idx = trackedTargets.findIndex(t => t.jid === target.jid || t.number === target.number);
+          if (idx >= 0) {
+            trackedTargets[idx] = { ...trackedTargets[idx], ...target };
+          } else {
+            trackedTargets.push(target);
+          }
+          renderTracerTargets();
+        });
+
+        socket.on('online_tracer_target_added', (target) => {
+          const idx = trackedTargets.findIndex(t => t.jid === target.jid || t.number === target.number);
+          if (idx >= 0) {
+            trackedTargets[idx] = target;
+          } else {
+            trackedTargets.push(target);
+          }
+          renderTracerTargets();
+        });
+
+        socket.on('online_tracer_target_removed', ({ idOrNumber }) => {
+          trackedTargets = trackedTargets.filter(t => t.id !== idOrNumber && t.jid !== idOrNumber && t.number !== idOrNumber);
+          renderTracerTargets();
+        });
+
+        socket.on('online_tracer_logs_cleared', () => {
+          tracerLogs = [];
+          renderTracerLogs();
+        });
+
+        // Deleted Messages Vault socket listeners
+        socket.on('deleted_message_captured', (item) => {
+          deletedMessages.unshift(item);
+          if (deletedMessages.length > 250) deletedMessages.pop();
+          renderDeletedMessages();
+          showToast(`Captured deleted ${item.type} from +${item.sender}`, 'warning');
+        });
+
+        socket.on('deleted_messages_cleared', () => {
+          deletedMessages = [];
+          renderDeletedMessages();
+          showToast('Deleted messages vault cleared', 'info');
+        });
+
         socket.on('session_cleared', () => {
           showToast('Session reset. Ready for new QR / Pairing code.', 'info');
           renderQrCode(null);
@@ -1004,6 +1732,8 @@
           cachedStatuses = data.statusItems;
           renderStatusList();
         }
+        await fetchOnlineTracerData();
+        await fetchDeletedMessages();
       } catch (e) {
         console.warn('Initial state fetch error:', e.message);
       }
@@ -1042,23 +1772,33 @@
 
     async function applySessionId() {
       const sessionId = document.getElementById('sessionIdInput').value.trim();
-      if (!sessionId) {
-        showToast('Please paste your WhatsApp Session ID string', 'warning');
+      if (!sessionId || sessionId.includes('SESSION LOCKED')) {
+        showToast('Please paste a valid WhatsApp Session ID string', 'warning');
         return;
       }
 
-      showToast('Applying Session ID & connecting to WhatsApp...', 'info');
+      const userStr = localStorage.getItem('zaid_user');
+      let googleUser = null;
+      if (userStr) {
+        try { googleUser = JSON.parse(userStr); } catch (_) {}
+      }
+
+      showToast('Applying Session ID & securing to your Google account...', 'info');
       try {
         const res = await fetch(`${backendUrl}/api/session`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId })
+          body: JSON.stringify({ sessionId, googleUser })
         });
         const data = await res.json();
         if (data.success) {
-          showToast(data.message || 'Session ID applied successfully! Socket connecting...', 'success');
+          showToast(data.message || 'Session ID bound and locked to your Google account!', 'success');
+          checkAccountSessionBinding();
         } else {
-          showToast('Session error: ' + (data.error || 'Failed to apply session ID'), 'error');
+          showToast(data.error || 'Failed to apply session ID', 'error');
+          if (data.alreadyBound) {
+            checkAccountSessionBinding();
+          }
         }
       } catch (err) {
         showToast('Session request failed: ' + err.message, 'error');
@@ -1393,12 +2133,1037 @@
           showToast('Error: ' + (data.error || 'Failed to update DP'), 'error');
         }
       } catch (err) {
+        showToast('DP upload failed: ' + err.message, 'error');
+      }
+    }
+
+    // ── G. Features 5 & 6: Voice Note (PTT) & Video Note (PTV) Logic ────────
+    let currentNoteTab = 'voice';
+    let voiceMode = 'record';
+    let videoMode = 'record';
+
+    let voiceMediaRecorder = null;
+    let voiceAudioChunks = [];
+    let voiceTimerInterval = null;
+    let voiceSeconds = 0;
+    let selectedVoiceBase64 = null;
+    let selectedVoiceMime = 'audio/ogg; codecs=opus';
+
+    let cameraStream = null;
+    let videoMediaRecorder = null;
+    let videoChunks = [];
+    let videoTimerInterval = null;
+    let videoSeconds = 0;
+    let selectedVideoBase64 = null;
+    let selectedVideoMime = 'video/mp4';
+
+    function switchNoteTab(tab) {
+      currentNoteTab = tab;
+      const voiceBtn = document.getElementById('noteTabVoiceBtn');
+      const videoBtn = document.getElementById('noteTabVideoBtn');
+      const voicePanel = document.getElementById('voiceNotePanel');
+      const videoPanel = document.getElementById('videoNotePanel');
+
+      const activeClass = 'py-2 rounded-lg bg-white text-sky-600 shadow-xs transition flex items-center justify-center gap-1.5';
+      const inactiveClass = 'py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5';
+
+      if (tab === 'voice') {
+        voiceBtn.className = activeClass;
+        videoBtn.className = inactiveClass;
+        voicePanel.classList.remove('hidden');
+        videoPanel.classList.add('hidden');
+      } else {
+        voiceBtn.className = inactiveClass;
+        videoBtn.className = activeClass;
+        voicePanel.classList.add('hidden');
+        videoPanel.classList.remove('hidden');
+      }
+    }
+
+    function switchVoiceMode(mode) {
+      voiceMode = mode;
+      const recBtn = document.getElementById('voiceModeRecordBtn');
+      const uploadBtn = document.getElementById('voiceModeUploadBtn');
+      const recSec = document.getElementById('voiceRecordSection');
+      const uploadSec = document.getElementById('voiceUploadSection');
+
+      const activeBtnClass = 'px-3 py-1 rounded-md bg-white text-sky-600 shadow-2xs font-bold transition text-[11px]';
+      const inactiveBtnClass = 'px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 font-bold transition text-[11px]';
+
+      if (mode === 'record') {
+        recBtn.className = activeBtnClass;
+        uploadBtn.className = inactiveBtnClass;
+        recSec.classList.remove('hidden');
+        uploadSec.classList.add('hidden');
+      } else {
+        recBtn.className = inactiveBtnClass;
+        uploadBtn.className = activeBtnClass;
+        recSec.classList.add('hidden');
+        uploadSec.classList.remove('hidden');
+      }
+    }
+
+    async function startVoiceRecording() {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          showToast('Microphone recording is not supported in this browser. Please use File Upload.', 'warning');
+          switchVoiceMode('upload');
+          return;
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        voiceAudioChunks = [];
+
+        let mimeType = 'audio/webm;codecs=opus';
+        if (typeof MediaRecorder.isTypeSupported === 'function') {
+          if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+            mimeType = 'audio/ogg;codecs=opus';
+          } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            mimeType = 'audio/mp4';
+          }
+        }
+
+        voiceMediaRecorder = new MediaRecorder(stream, { mimeType });
+        selectedVoiceMime = mimeType;
+
+        voiceMediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) voiceAudioChunks.push(e.data);
+        };
+
+        voiceMediaRecorder.onstop = () => {
+          stream.getTracks().forEach(t => t.stop());
+          const audioBlob = new Blob(voiceAudioChunks, { type: selectedVoiceMime });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            selectedVoiceBase64 = reader.result;
+            const player = document.getElementById('voiceAudioPlayer');
+            player.src = selectedVoiceBase64;
+            document.getElementById('voicePreviewBox').classList.remove('hidden');
+            showToast('Voice note recorded (' + voiceSeconds + 's). Ready to transmit.', 'success');
+          };
+          reader.readAsDataURL(audioBlob);
+        };
+
+        voiceMediaRecorder.start(250);
+        voiceSeconds = 0;
+        document.getElementById('voiceRecTimer').innerText = '00:00';
+        document.getElementById('voiceRecPulse').className = 'w-3 h-3 rounded-full bg-red-500 animate-pulse';
+        document.getElementById('voiceRecStatus').innerText = 'Recording voice waveform... Speak now.';
+        document.getElementById('startVoiceRecBtn').classList.add('hidden');
+        document.getElementById('stopVoiceRecBtn').classList.remove('hidden');
+
+        clearInterval(voiceTimerInterval);
+        voiceTimerInterval = setInterval(() => {
+          voiceSeconds++;
+          const mins = String(Math.floor(voiceSeconds / 60)).padStart(2, '0');
+          const secs = String(voiceSeconds % 60).padStart(2, '0');
+          document.getElementById('voiceRecTimer').innerText = `${mins}:${secs}`;
+        }, 1000);
+
+      } catch (err) {
+        console.error('Voice rec error:', err);
+        showToast('Microphone access denied: ' + err.message + '. Please use File Upload tab.', 'error');
+        switchVoiceMode('upload');
+      }
+    }
+
+    function stopVoiceRecording() {
+      if (voiceMediaRecorder && voiceMediaRecorder.state !== 'inactive') {
+        voiceMediaRecorder.stop();
+      }
+      clearInterval(voiceTimerInterval);
+      document.getElementById('voiceRecPulse').className = 'w-3 h-3 rounded-full bg-slate-300';
+      document.getElementById('voiceRecStatus').innerText = 'Recording complete.';
+      document.getElementById('startVoiceRecBtn').classList.remove('hidden');
+      document.getElementById('stopVoiceRecBtn').classList.add('hidden');
+    }
+
+    function handleVoiceFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      selectedVoiceMime = file.type || 'audio/ogg';
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        selectedVoiceBase64 = e.target.result;
+        const player = document.getElementById('voiceAudioPlayer');
+        player.src = selectedVoiceBase64;
+        document.getElementById('voicePreviewBox').classList.remove('hidden');
+        showToast('Audio file loaded: ' + file.name, 'success');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearVoicePreview() {
+      selectedVoiceBase64 = null;
+      document.getElementById('voiceAudioPlayer').src = '';
+      document.getElementById('voicePreviewBox').classList.add('hidden');
+      document.getElementById('voiceFileInput').value = '';
+      document.getElementById('voiceRecTimer').innerText = '00:00';
+      document.getElementById('voiceRecStatus').innerText = 'Click button to begin recording via microphone';
+      showToast('Voice preview cleared', 'info');
+    }
+
+    async function transmitVoiceNote() {
+      const to = document.getElementById('noteRecipientNumber').value.trim();
+      if (!to) {
+        showToast('Please enter target WhatsApp recipient number with country code', 'warning');
+        return;
+      }
+      if (!selectedVoiceBase64) {
+        showToast('Please record audio or upload an audio file first!', 'warning');
+        return;
+      }
+
+      showToast('Transmitting authentic Voice Note (PTT) to +' + to + '...', 'info');
+
+      try {
+        const res = await fetch(`${backendUrl}/api/send-voice-note`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to,
+            audioBase64: selectedVoiceBase64,
+            mime: selectedVoiceMime
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Voice note delivered to +' + to + ' with PTT waveform!', 'success');
+        } else {
+          showToast('Delivery error: ' + (data.error || 'Failed to send voice note'), 'error');
+        }
+      } catch (err) {
+        showToast('Transmission failed: ' + err.message, 'error');
+      }
+    }
+
+    // ── Video Note (PTV) Logic ───────────────────────────────────────────────
+    function switchVideoMode(mode) {
+      videoMode = mode;
+      const recBtn = document.getElementById('videoModeRecordBtn');
+      const uploadBtn = document.getElementById('videoModeUploadBtn');
+      const recSec = document.getElementById('videoRecordSection');
+      const uploadSec = document.getElementById('videoUploadSection');
+
+      const activeBtnClass = 'px-3 py-1 rounded-md bg-white text-sky-600 shadow-2xs font-bold transition text-[11px]';
+      const inactiveBtnClass = 'px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 font-bold transition text-[11px]';
+
+      if (mode === 'record') {
+        recBtn.className = activeBtnClass;
+        uploadBtn.className = inactiveBtnClass;
+        recSec.classList.remove('hidden');
+        uploadSec.classList.add('hidden');
+      } else {
+        recBtn.className = inactiveBtnClass;
+        uploadBtn.className = activeBtnClass;
+        recSec.classList.add('hidden');
+        uploadSec.classList.remove('hidden');
+      }
+    }
+
+    async function toggleCamera() {
+      const videoEl = document.getElementById('liveCameraStream');
+      const placeholder = document.getElementById('cameraStandbyPlaceholder');
+      const recBtn = document.getElementById('startVideoRecBtn');
+      const toggleLabel = document.getElementById('toggleCameraLabel');
+
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+        videoEl.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        recBtn.disabled = true;
+        recBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        toggleLabel.innerText = 'ENABLE CAMERA';
+        document.getElementById('videoRecStatus').innerText = 'Camera turned off';
+        return;
+      }
+
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 480 } },
+          audio: true
+        });
+
+        videoEl.srcObject = cameraStream;
+        videoEl.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+        recBtn.disabled = false;
+        recBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        toggleLabel.innerText = 'DISABLE CAMERA';
+        document.getElementById('videoRecStatus').innerText = 'Camera active! Click RECORD NOTE to start.';
+      } catch (err) {
+        console.error('Camera access error:', err);
+        showToast('Camera access denied: ' + err.message + '. Please use File Upload.', 'error');
+        switchVideoMode('upload');
+      }
+    }
+
+    function startVideoRecording() {
+      if (!cameraStream) {
+        showToast('Please enable camera first', 'warning');
+        return;
+      }
+
+      videoChunks = [];
+      let mimeType = 'video/webm;codecs=vp8,opus';
+      if (typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported('video/mp4')) {
+        mimeType = 'video/mp4';
+      }
+
+      selectedVideoMime = mimeType;
+      videoMediaRecorder = new MediaRecorder(cameraStream, { mimeType });
+
+      videoMediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) videoChunks.push(e.data);
+      };
+
+      videoMediaRecorder.onstop = () => {
+        const videoBlob = new Blob(videoChunks, { type: selectedVideoMime });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          selectedVideoBase64 = reader.result;
+          const player = document.getElementById('videoNotePlayer');
+          player.src = selectedVideoBase64;
+          document.getElementById('videoPreviewBox').classList.remove('hidden');
+          showToast('Circular video note recorded (' + videoSeconds + 's). Ready to transmit.', 'success');
+        };
+        reader.readAsDataURL(videoBlob);
+      };
+
+      videoMediaRecorder.start(250);
+      videoSeconds = 0;
+      document.getElementById('videoRecTimer').innerText = '00:00';
+      document.getElementById('videoRecPulse').className = 'w-3 h-3 rounded-full bg-red-500 animate-pulse';
+      document.getElementById('videoRecRing').classList.remove('hidden');
+      document.getElementById('videoRecStatus').innerText = 'Recording circular video note...';
+      document.getElementById('startVideoRecBtn').classList.add('hidden');
+      document.getElementById('stopVideoRecBtn').classList.remove('hidden');
+
+      clearInterval(videoTimerInterval);
+      videoTimerInterval = setInterval(() => {
+        videoSeconds++;
+        const mins = String(Math.floor(videoSeconds / 60)).padStart(2, '0');
+        const secs = String(videoSeconds % 60).padStart(2, '0');
+        document.getElementById('videoRecTimer').innerText = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function stopVideoRecording() {
+      if (videoMediaRecorder && videoMediaRecorder.state !== 'inactive') {
+        videoMediaRecorder.stop();
+      }
+      clearInterval(videoTimerInterval);
+      document.getElementById('videoRecPulse').className = 'w-3 h-3 rounded-full bg-slate-300';
+      document.getElementById('videoRecRing').classList.add('hidden');
+      document.getElementById('videoRecStatus').innerText = 'Recording stopped. Preview ready below.';
+      document.getElementById('startVideoRecBtn').classList.remove('hidden');
+      document.getElementById('stopVideoRecBtn').classList.add('hidden');
+    }
+
+    function handleVideoFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      selectedVideoMime = file.type || 'video/mp4';
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        selectedVideoBase64 = e.target.result;
+        const player = document.getElementById('videoNotePlayer');
+        player.src = selectedVideoBase64;
+        document.getElementById('videoPreviewBox').classList.remove('hidden');
+        showToast('Video file loaded: ' + file.name, 'success');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearVideoPreview() {
+      selectedVideoBase64 = null;
+      document.getElementById('videoNotePlayer').src = '';
+      document.getElementById('videoPreviewBox').classList.add('hidden');
+      document.getElementById('videoFileInput').value = '';
+      document.getElementById('videoRecTimer').innerText = '00:00';
+      showToast('Video note preview cleared', 'info');
+    }
+
+    async function transmitVideoNote() {
+      const to = document.getElementById('noteRecipientNumber').value.trim();
+      if (!to) {
+        showToast('Please enter target WhatsApp recipient number with country code', 'warning');
+        return;
+      }
+      if (!selectedVideoBase64) {
+        showToast('Please record a video or upload a video file first!', 'warning');
+        return;
+      }
+
+      showToast('Transmitting circular Video Note (PTV) to +' + to + '...', 'info');
+
+      try {
+        const res = await fetch(`${backendUrl}/api/send-video-note`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to,
+            videoBase64: selectedVideoBase64,
+            mime: selectedVideoMime
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Circular video note (PTV) delivered to +' + to + '!', 'success');
+        } else {
+          showToast('Delivery error: ' + (data.error || 'Failed to send video note'), 'error');
+        }
+      } catch (err) {
+        showToast('Transmission failed: ' + err.message, 'error');
+      }
+    }
+
+    // ── H. Feature 7: Online Tracer Logic ────────────────────────────────────
+    async function fetchOnlineTracerData() {
+      try {
+        const res = await fetch(`${backendUrl}/api/online-tracer`);
+        const data = await res.json();
+        if (data.success) {
+          trackedTargets = data.targets || [];
+          tracerLogs = data.logs || [];
+          renderTracerTargets();
+          renderTracerLogs();
+        }
+      } catch (err) {
+        console.warn('[OnlineTracer] Fetch error:', err.message);
+      }
+    }
+
+    async function startTrackingNumber() {
+      const input = document.getElementById('tracerNumberInput');
+      const nameInput = document.getElementById('tracerNameInput');
+      const number = input.value.trim().replace(/[^0-9]/g, '');
+      const name = nameInput.value.trim();
+
+      if (!number || number.length < 8) {
+        showToast('Please enter a valid WhatsApp number with country code (e.g. 9232999931199)', 'warning');
+        return;
+      }
+
+      showToast(`Subscribing to presence for +${number}...`, 'info');
+
+      try {
+        const res = await fetch(`${backendUrl}/api/online-tracer/track`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number, name })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(data.message || `Started tracking +${number}`, 'success');
+          input.value = '';
+          nameInput.value = '';
+          fetchOnlineTracerData();
+        } else {
+          showToast('Error: ' + (data.error || 'Failed to track number'), 'error');
+        }
+      } catch (err) {
+        showToast('Request failed: ' + err.message, 'error');
+      }
+    }
+
+    async function stopTrackingNumber(idOrNumber) {
+      if (!confirm('Stop tracking this contact presence?')) return;
+
+      try {
+        const res = await fetch(`${backendUrl}/api/online-tracer/target/${encodeURIComponent(idOrNumber)}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Target removed from monitoring', 'info');
+          fetchOnlineTracerData();
+        } else {
+          showToast('Failed to remove target', 'error');
+        }
+      } catch (err) {
         showToast('Request error: ' + err.message, 'error');
       }
     }
 
+    async function clearTracerLogsPrompt() {
+      if (!confirm('Clear all presence timeline logs?')) return;
+      try {
+        const res = await fetch(`${backendUrl}/api/online-tracer/clear-logs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const data = await res.json();
+        if (data.success) {
+          tracerLogs = [];
+          renderTracerLogs();
+          showToast('Logs cleared', 'success');
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      }
+    }
+
+    function exportTracerLogs() {
+      if (!tracerLogs || tracerLogs.length === 0) {
+        showToast('No presence logs to export', 'warning');
+        return;
+      }
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+        exportedAt: new Date().toISOString(),
+        totalLogs: tracerLogs.length,
+        targets: trackedTargets,
+        logs: tracerLogs
+      }, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `online_tracer_logs_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('Exported presence audit logs', 'success');
+    }
+
+    function renderTracerTargets() {
+      const container = document.getElementById('tracerTargetsGrid');
+      const badgeCount = document.getElementById('tracerTargetCount');
+      if (!container) return;
+
+      if (badgeCount) {
+        badgeCount.textContent = `${trackedTargets.length} TARGET${trackedTargets.length === 1 ? '' : 'S'}`;
+      }
+
+      if (trackedTargets.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full text-center py-6 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+            <svg class="w-8 h-8 mx-auto text-slate-300 mb-1.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+            </svg>
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">No contacts being traced yet</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">Enter a phone number above and click Track to start monitoring real-time online/offline presence.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = trackedTargets.map(t => {
+        const isOnline = t.currentStatus === 'available' || t.currentStatus === 'online';
+        const isTyping = t.currentStatus === 'composing' || t.currentStatus === 'typing';
+        const isRecording = t.currentStatus === 'recording';
+
+        let badgeHtml = '';
+        if (isOnline) {
+          badgeHtml = `
+            <span class="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              ONLINE
+            </span>
+          `;
+        } else if (isTyping) {
+          badgeHtml = `
+            <span class="inline-flex items-center gap-1.5 text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">
+              <span class="w-2 h-2 rounded-full bg-sky-500 animate-bounce"></span>
+              TYPING...
+            </span>
+          `;
+        } else if (isRecording) {
+          badgeHtml = `
+            <span class="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+              <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+              AUDIO...
+            </span>
+          `;
+        } else {
+          badgeHtml = `
+            <span class="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+              OFFLINE
+            </span>
+          `;
+        }
+
+        return `
+          <div class="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-sky-300 transition shadow-xs flex flex-col justify-between">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <div>
+                <span class="sci-font font-bold text-slate-900 text-xs block truncate">${t.name || ('+' + t.number)}</span>
+                <span class="font-mono text-slate-500 text-xs tracking-wider block font-bold">+${t.number}</span>
+              </div>
+              ${badgeHtml}
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <div>
+                <span class="text-slate-400">Last event:</span>
+                <span class="font-bold font-mono text-slate-700">${t.lastSeenFormatted || 'Awaiting'}</span>
+                ${t.lastDuration ? `<span class="text-slate-400 ml-1 font-mono">(${t.lastDuration})</span>` : ''}
+              </div>
+              <button onclick="stopTrackingNumber('${t.id || t.number}')" title="Stop Tracking" class="text-slate-400 hover:text-red-600 transition p-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderTracerLogs() {
+      const container = document.getElementById('tracerLogsContainer');
+      const filter = (document.getElementById('tracerLogFilterInput')?.value || '').trim();
+      if (!container) return;
+
+      let displayLogs = tracerLogs;
+      if (filter) {
+        displayLogs = tracerLogs.filter(l => l.number.includes(filter) || (l.summary && l.summary.includes(filter)));
+      }
+
+      if (displayLogs.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-10 text-slate-500">
+            <p class="font-bold text-xs uppercase tracking-wider text-slate-400">No presence transitions logged yet</p>
+            <p class="text-[11px] text-slate-600 mt-1">Live transitions (e.g. 9232999931199 online at 05:13am / offline 05:19am) will stream here in real time.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = displayLogs.map(l => {
+        let statusColor = 'text-slate-400';
+        let statusBadge = l.statusLabel || 'event';
+        if (l.statusLabel === 'online') {
+          statusColor = 'text-emerald-400';
+        } else if (l.statusLabel === 'offline') {
+          statusColor = 'text-slate-400';
+        } else if (l.statusLabel === 'typing') {
+          statusColor = 'text-sky-400';
+        } else if (l.statusLabel === 'recording') {
+          statusColor = 'text-amber-400';
+        }
+
+        return `
+          <div class="flex items-center justify-between py-1 border-b border-slate-800/80 hover:bg-slate-800/50 px-2 rounded transition">
+            <div class="flex items-center gap-2 truncate">
+              <span class="text-slate-500 font-mono text-[11px]">[${l.timeFormatted}]</span>
+              <span class="text-sky-300 font-bold font-mono">+${l.number}</span>
+              <span class="${statusColor} font-bold uppercase tracking-wider text-[11px]">${statusBadge}</span>
+              ${l.durationFormatted ? `<span class="text-slate-400 text-[10px]">(Duration: ${l.durationFormatted})</span>` : ''}
+            </div>
+            <span class="text-slate-600 text-[10px] font-mono shrink-0">${l.name ? l.name : ''}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function filterTracerLogs() {
+      renderTracerLogs();
+    }
+
+    // ── I. Cloud & Production Modal Logic ────────────────────────────────────
+    async function openCloudModal() {
+      document.getElementById('cloudModal').classList.remove('hidden');
+      await fetchCloudStatus();
+    }
+
+    function closeCloudModal() {
+      document.getElementById('cloudModal').classList.add('hidden');
+    }
+
+    async function fetchCloudStatus() {
+      try {
+        const res = await fetch(`${backendUrl}/api/cloud-status`);
+        const data = await res.json();
+        if (data.success) {
+          cloudStatus = data;
+          updateCloudUI(data);
+        }
+      } catch (err) {
+        console.warn('[CloudStatus] Error fetching cloud status:', err.message);
+      }
+    }
+
+    function updateCloudUI(data) {
+      if (!data) return;
+
+      // Backend (Render / Railway)
+      const bInfo = data.backend || data.railway || {};
+      const rBadge = document.getElementById('cloudRailwayBadge');
+      const rUrl = document.getElementById('cloudRailwayUrl');
+      const rUptime = document.getElementById('cloudRailwayUptime');
+      const bTitle = document.getElementById('cloudBackendTitle');
+      if (bTitle) {
+        bTitle.textContent = bInfo.platform ? `${bInfo.platform} Backend` : (data.render && data.render.active ? 'Render Backend' : 'Render / Railway Backend');
+      }
+      if (rBadge) {
+        if (bInfo.connected) {
+          rBadge.textContent = 'ONLINE';
+          rBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800';
+        } else {
+          rBadge.textContent = 'DISCONNECTED';
+          rBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800';
+        }
+      }
+      if (rUrl) rUrl.textContent = backendUrl;
+      const platformLabel = bInfo.platform || 'Host';
+      if (rUptime) rUptime.textContent = `[${platformLabel}] Uptime: ${bInfo.uptime || 0}s | Account: ${bInfo.botJid || 'Unpaired'}`;
+
+      // Google
+      const gClient = document.getElementById('cloudGoogleClient');
+      const gUser = document.getElementById('cloudGoogleUser');
+      if (gClient) gClient.textContent = googleClientId ? `ID: ${googleClientId.substring(0, 16)}...` : 'Using Default Client ID';
+      if (gUser && googleUser) gUser.textContent = `Operator: ${googleUser.email || googleUser.name}`;
+
+      // Cloudinary
+      const cBadge = document.getElementById('cloudCloudinaryBadge');
+      const cName = document.getElementById('cloudCloudinaryName');
+      if (cBadge) {
+        if (data.cloudinary.configured) {
+          cBadge.textContent = 'ACTIVE';
+          cBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800';
+        } else {
+          cBadge.textContent = 'NOT CONFIGURED';
+          cBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700';
+        }
+      }
+      if (cName) cName.textContent = data.cloudinary.cloudName ? `Cloud Name: ${data.cloudinary.cloudName}` : 'Set CLOUDINARY_URL in Render / Railway / Vercel';
+
+      // GitHub
+      const ghBadge = document.getElementById('cloudGithubBadge');
+      const gistLink = document.getElementById('cloudGistLink');
+      if (ghBadge) {
+        if (data.github.configured) {
+          ghBadge.textContent = 'CONFIGURED';
+          ghBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800';
+        } else {
+          ghBadge.textContent = 'NOT CONFIGURED';
+          ghBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-700';
+        }
+      }
+      if (gistLink && data.github.htmlUrl) {
+        gistLink.href = data.github.htmlUrl;
+        gistLink.classList.remove('hidden');
+      }
+    }
+
+    async function triggerGitHubBackup() {
+      const btn = document.getElementById('cloudBackupNowBtn');
+      if (btn) btn.disabled = true;
+      showToast('Backing up session credentials to secret GitHub Gist...', 'info');
+
+      try {
+        const res = await fetch(`${backendUrl}/api/backup/github`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            triggeredBy: googleUser?.email || 'panel_operator'
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Session backup saved to secret GitHub Gist!', 'success');
+          await fetchCloudStatus();
+        } else {
+          showToast('Backup failed: ' + (data.error || 'Check GITHUB_TOKEN'), 'error');
+        }
+      } catch (err) {
+        showToast('Backup request failed: ' + err.message, 'error');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    // ── J. Feature 8: Anti-Delete / Deleted Messages Vault Logic ─────────────
+    async function fetchDeletedMessages() {
+      try {
+        const res = await fetch(`${backendUrl}/api/deleted-messages`);
+        const data = await res.json();
+        if (data.success) {
+          deletedMessages = data.logs || [];
+          updateDeletedCounts(data.counts);
+          renderDeletedMessages();
+        }
+      } catch (err) {
+        console.warn('[DeletedMessages] Fetch error:', err.message);
+      }
+    }
+
+    function updateDeletedCounts(counts) {
+      if (!counts) {
+        counts = {
+          total: deletedMessages.length,
+          photos: deletedMessages.filter(l => l.type === 'photo').length,
+          videos: deletedMessages.filter(l => l.type === 'video').length,
+          voices: deletedMessages.filter(l => l.type === 'voice').length,
+          texts: deletedMessages.filter(l => l.type === 'text').length
+        };
+      }
+      const totalBadge = document.getElementById('deletedTotalCountBadge');
+      if (totalBadge) totalBadge.textContent = `${counts.total} DELETED MSG${counts.total === 1 ? '' : 'S'}`;
+
+      const cAll = document.getElementById('count_all');
+      const cPhoto = document.getElementById('count_photo');
+      const cVideo = document.getElementById('count_video');
+      const cVoice = document.getElementById('count_voice');
+      const cText = document.getElementById('count_text');
+
+      if (cAll) cAll.textContent = counts.total;
+      if (cPhoto) cPhoto.textContent = counts.photos;
+      if (cVideo) cVideo.textContent = counts.videos;
+      if (cVoice) cVoice.textContent = counts.voices;
+      if (cText) cText.textContent = counts.texts;
+    }
+
+    function setDeletedTypeFilter(type) {
+      currentDeletedFilterType = type;
+      const types = ['all', 'photo', 'video', 'voice', 'text'];
+      types.forEach(t => {
+        const btn = document.getElementById(`filterBtn_${t}`);
+        if (!btn) return;
+        if (t === type) {
+          btn.className = 'px-2.5 py-1 rounded-lg font-bold bg-white text-slate-800 border border-slate-300 shadow-xs transition';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded-lg font-bold bg-transparent text-slate-600 hover:bg-slate-200 border border-transparent transition';
+        }
+      });
+      renderDeletedMessages();
+    }
+
+    function renderDeletedMessages() {
+      const container = document.getElementById('deletedMessagesList');
+      const numberFilter = (document.getElementById('deletedNumberFilterInput')?.value || '').trim().replace(/[^0-9]/g, '');
+      if (!container) return;
+
+      let filtered = deletedMessages;
+      if (currentDeletedFilterType !== 'all') {
+        filtered = filtered.filter(m => m.type === currentDeletedFilterType);
+      }
+      if (numberFilter) {
+        filtered = filtered.filter(m => m.sender.includes(numberFilter));
+      }
+
+      updateDeletedCounts();
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+            <svg class="w-10 h-10 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+            </svg>
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">No deleted messages captured yet</p>
+            <p class="text-[11px] text-slate-400 mt-1 max-w-md mx-auto">When contacts delete private direct messages (text, photos, videos, or voice notes) for everyone, they will be preserved and accessible here in real time.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(m => {
+        let typeBadgeClass = 'bg-slate-100 text-slate-700 border-slate-200';
+        let typeLabel = 'TEXT';
+        if (m.type === 'photo') {
+          typeBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+          typeLabel = 'PHOTO';
+        } else if (m.type === 'video') {
+          typeBadgeClass = 'bg-sky-50 text-sky-700 border-sky-200';
+          typeLabel = m.isPtvVideo ? 'VIDEO NOTE (PTV)' : 'VIDEO';
+        } else if (m.type === 'voice') {
+          typeBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+          typeLabel = m.isPttVoice ? 'VOICE NOTE (PTT)' : 'AUDIO';
+        }
+
+        const mediaSrc = m.cloudinaryUrl || (m.mediaUrl ? `${backendUrl}${m.mediaUrl}` : null);
+
+        let contentHtml = '';
+        if (m.type === 'text') {
+          contentHtml = `
+            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 font-sans text-xs text-slate-800 break-words whitespace-pre-wrap">
+              <span class="text-slate-400 font-serif text-sm mr-1">“</span>${escapeHtml(m.text || '[Empty Text]')}<span class="text-slate-400 font-serif text-sm ml-1">”</span>
+            </div>
+          `;
+        } else if (m.type === 'photo') {
+          contentHtml = `
+            <div class="space-y-2">
+              ${m.text ? `<p class="text-xs text-slate-700 font-medium mb-1 break-words">${escapeHtml(m.text)}</p>` : ''}
+              <div class="relative inline-block group">
+                <img 
+                  src="${mediaSrc}" 
+                  alt="Deleted photo" 
+                  onclick="openDeletedImageModal('${mediaSrc}', '${m.sender}')"
+                  class="w-48 h-36 object-cover rounded-lg border border-slate-200 shadow-xs cursor-pointer hover:opacity-90 transition bg-slate-100" 
+                  onerror="this.parentElement.innerHTML='<span class=\"text-[11px] text-slate-400 italic\">[Photo preview unavailable or expired]</span>'"
+                />
+                <button 
+                  onclick="openDeletedImageModal('${mediaSrc}', '${m.sender}')"
+                  class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition rounded-lg flex items-center justify-center text-white text-xs font-bold gap-1 pointer-events-none">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
+                  </svg>
+                  <span>ZOOM</span>
+                </button>
+              </div>
+              <div>
+                <a href="${mediaSrc}" download="${m.mediaFilename || 'deleted_photo.jpg'}" target="_blank" class="inline-flex items-center gap-1.5 text-xs font-bold text-sky-600 hover:text-sky-700 bg-sky-50 hover:bg-sky-100 px-3 py-1.5 rounded-lg border border-sky-200 transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  <span>DOWNLOAD PHOTO</span>
+                </a>
+              </div>
+            </div>
+          `;
+        } else if (m.type === 'video') {
+          contentHtml = `
+            <div class="space-y-2">
+              ${m.text ? `<p class="text-xs text-slate-700 font-medium mb-1 break-words">${escapeHtml(m.text)}</p>` : ''}
+              <div class="max-w-sm rounded-lg overflow-hidden border border-slate-200 bg-black shadow-xs">
+                <video src="${mediaSrc}" controls class="w-full max-h-56 ${m.isPtvVideo ? 'rounded-full aspect-square object-cover' : 'rounded-lg'}" preload="metadata">
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+              <div>
+                <a href="${mediaSrc}" download="${m.mediaFilename || 'deleted_video.mp4'}" target="_blank" class="inline-flex items-center gap-1.5 text-xs font-bold text-sky-600 hover:text-sky-700 bg-sky-50 hover:bg-sky-100 px-3 py-1.5 rounded-lg border border-sky-200 transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  <span>DOWNLOAD VIDEO</span>
+                </a>
+              </div>
+            </div>
+          `;
+        } else if (m.type === 'voice') {
+          contentHtml = `
+            <div class="space-y-2">
+              <div class="p-3 bg-amber-50/50 rounded-lg border border-amber-200 flex items-center gap-3 max-w-md">
+                <div class="p-2 rounded-full bg-amber-100 text-amber-700">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15a3 3 0 01-3-3V4.5a3 3 0 116 0v7.5a3 3 0 01-3 3z" />
+                  </svg>
+                </div>
+                <audio src="${mediaSrc}" controls class="w-full h-8" preload="metadata"></audio>
+              </div>
+              <div>
+                <a href="${mediaSrc}" download="${m.mediaFilename || 'deleted_voice.ogg'}" target="_blank" class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg border border-amber-200 transition">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  <span>DOWNLOAD VOICE NOTE</span>
+                </a>
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="p-4 rounded-xl border border-slate-200 bg-white hover:border-red-300 transition shadow-xs flex flex-col gap-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+              <div class="flex items-center gap-2">
+                <span class="font-mono font-bold text-slate-900 text-xs sm:text-sm tracking-wide">+${m.sender}</span>
+                <span class="text-[10px] font-bold border px-2 py-0.5 rounded uppercase tracking-wider ${typeBadgeClass}">${typeLabel}</span>
+              </div>
+              <div class="flex items-center gap-2 text-[11px] text-slate-500 font-mono">
+                <span>Sent: <strong class="text-slate-700">${m.sentTimeFormatted}</strong></span>
+                <span>·</span>
+                <span>Deleted: <strong class="text-red-600">${m.deletedTimeFormatted}</strong></span>
+                ${m.durationActive ? `<span class="text-slate-400">(${m.durationActive})</span>` : ''}
+              </div>
+            </div>
+
+            <!-- Content preview -->
+            <div>
+              ${contentHtml}
+            </div>
+
+            <!-- Card footer -->
+            <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1">
+              <span>Msg ID: ${m.messageId}</span>
+              ${m.cloudinaryUrl ? `<a href="${m.cloudinaryUrl}" target="_blank" class="text-emerald-600 hover:underline font-bold">CLOUDINARY CDN LINK</a>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/[&<>"']/g, function(m) {
+        return {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#039;'
+        }[m];
+      });
+    }
+
+    async function clearDeletedMessagesPrompt() {
+      if (!confirm('Clear all captured deleted messages from the audit vault?')) return;
+      try {
+        const res = await fetch(`${backendUrl}/api/deleted-messages/clear`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.success) {
+          deletedMessages = [];
+          renderDeletedMessages();
+          showToast('Deleted messages vault cleared', 'success');
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      }
+    }
+
+    function exportDeletedMessages() {
+      if (!deletedMessages || deletedMessages.length === 0) {
+        showToast('No deleted messages to export', 'warning');
+        return;
+      }
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+        exportedAt: new Date().toISOString(),
+        totalRecovered: deletedMessages.length,
+        logs: deletedMessages
+      }, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `deleted_messages_vault_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      showToast('Exported deleted messages audit log', 'success');
+    }
+
+    function openDeletedImageModal(src, sender) {
+      const modal = document.getElementById('deletedImageModal');
+      const img = document.getElementById('lightboxImage');
+      const label = document.getElementById('lightboxSenderLabel');
+      const link = document.getElementById('lightboxDownloadLink');
+      if (!modal || !img) return;
+
+      img.src = src;
+      if (label) label.textContent = `DELETED PHOTO FROM +${sender}`;
+      if (link) {
+        link.href = src;
+        link.download = `deleted_photo_${sender}_${Date.now()}.jpg`;
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function closeDeletedImageModal() {
+      const modal = document.getElementById('deletedImageModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
     // ── Initialize Dashboard on Load ─────────────────────────────────────────
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
+      // 1. Probe Vercel Serverless Environment Variables
+      await loadVercelEnvironment();
+
+      // 2. URL parameters override (if explicitly provided)
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const queryBackend = urlParams.get('backend');
@@ -1419,6 +3184,9 @@
       initGoogleAuth();
       connectSocket();
       fetchInitialState();
+      checkAccountSessionBinding();
+      fetchOnlineTracerData();
+      fetchDeletedMessages();
     });
   </script>
 </body>

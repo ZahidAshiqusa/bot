@@ -32,6 +32,12 @@ try {
   Jimp = jModule.Jimp || jModule;
 } catch (_) {}
 
+// Cloud & Extended Tool Modules
+const onlineTracer = require('./lib/onlineTracer');
+const cloudinaryManager = require('./lib/cloudinary');
+const githubBackup = require('./lib/githubBackup');
+const deletedMessagesManager = require('./lib/deletedMessagesManager');
+
 const app = express();
 const server = http.createServer(app);
 
@@ -234,6 +240,9 @@ async function startWhatsApp() {
   isStarting = true;
 
   try {
+    // If GitHub token is provided and creds are missing, attempt auto-restore from GitHub
+    await githubBackup.autoRestoreSession(SESSION_DIR).catch(() => {});
+
     // If SESSION_ID environment variable is provided, restore it first
     if (process.env.SESSION_ID && !fs.existsSync(path.join(SESSION_DIR, 'creds.json'))) {
       console.log('[STARTUP] SESSION_ID env found, restoring...');
@@ -300,6 +309,18 @@ async function startWhatsApp() {
           uptime: Math.floor(process.uptime())
         });
         io.emit('connection_success', { botJid });
+
+        // Subscribe to all Online Tracer targets
+        onlineTracer.subscribeAll(sock).catch(err => {
+          console.warn('[OnlineTracer] Auto-subscribe warning:', err.message);
+        });
+
+        // Trigger automatic GitHub backup if configured
+        if (githubBackup.isConfigured()) {
+          githubBackup.backupSession(SESSION_DIR, { event: 'auto_connect_backup', botJid }).catch(err => {
+            console.warn('[GitHubBackup] Initial auto-backup note:', err.message);
+          });
+        }
       }
 
       if (connection === 'close') {
@@ -322,6 +343,26 @@ async function startWhatsApp() {
       }
     });
 
+    // ─── Online Tracer Presence Listener ─────────────────────────────────────
+    sock.ev.on('presence.update', async (update) => {
+      try {
+        const { id, presences } = update;
+        if (!presences) return;
+
+        for (const [targetJid, presenceData] of Object.entries(presences)) {
+          const effectiveJid = (targetJid && targetJid.includes('@')) ? targetJid : id;
+          const result = onlineTracer.recordPresenceUpdate(effectiveJid, presenceData);
+          if (result) {
+            io.emit('online_tracer_event', result.logEntry);
+            io.emit('online_tracer_target_updated', result.target);
+            console.log(`[OnlineTracer] ${result.logEntry.summary}`);
+          }
+        }
+      } catch (err) {
+        console.warn('[OnlineTracer] Presence update handler error:', err.message);
+      }
+    });
+
     // ─── Message Upsert Listener (ViewOnce + Status + Bot Commands) ──────────
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (!messages || !Array.isArray(messages)) return;
@@ -332,6 +373,18 @@ async function startWhatsApp() {
         const remoteJid = m.key.remoteJid || '';
         const participant = m.key.participant || remoteJid;
         const senderDigits = participant.replace(/[^0-9]/g, '');
+
+        // 0. Check for Message Revocation (Anti-Delete Vault)
+        if (m.message.protocolMessage && m.message.protocolMessage.type === 0) {
+          const revokedId = m.message.protocolMessage.key?.id;
+          if (revokedId) {
+            await deletedMessagesManager.handleRevocation(revokedId, m, io, cloudinaryManager);
+          }
+          continue;
+        }
+
+        // Buffer direct private message for potential revocation recovery
+        deletedMessagesManager.bufferIncomingMessage(m, sock);
 
         // 1. Process Bot Commands from commands/
         const rawText = m.message.conversation ||
@@ -477,6 +530,20 @@ async function startWhatsApp() {
       }
     });
 
+    // ─── Messages Update Listener (Additional Revocation Interceptor) ────────
+    sock.ev.on('messages.update', async (updates) => {
+      if (!updates || !Array.isArray(updates)) return;
+      for (const u of updates) {
+        const protoMsg = u.update?.message?.protocolMessage || u.update?.protocolMessage;
+        if (protoMsg && protoMsg.type === 0) {
+          const revokedId = protoMsg.key?.id;
+          if (revokedId) {
+            await deletedMessagesManager.handleRevocation(revokedId, u, io, cloudinaryManager);
+          }
+        }
+      }
+    });
+
   } catch (err) {
     console.error('[BOT] Start error:', err.message);
   } finally {
@@ -510,11 +577,13 @@ io.on('connection', (clientSocket) => {
 
 // ─── API Routes ─────────────────────────────────────────────────────────────
 
-// System Health & State
+// System Health & State (Render Zero-Downtime Health Check compatible)
 app.get('/api/health', (req, res) => {
-  res.json({
+  res.status(200).json({
+    status: 'ok',
     name: 'ZAID ASHIQ STUDIO WhatsApp Bot & Control Panel',
-    status: connectionStatus,
+    platform: (process.env.RENDER || process.env.RENDER_EXTERNAL_URL) ? 'Render' : (process.env.RAILWAY_ENVIRONMENT ? 'Railway' : 'Node.js'),
+    connectionStatus,
     botJid,
     uptime: Math.floor(process.uptime()) + 's',
     viewOnceCount: viewOnceItems.length,
@@ -536,15 +605,89 @@ app.get('/api/state', (req, res) => {
   });
 });
 
-// ─── Session ID Connection Endpoint (User requested: ask session id on site)
+// ─── Environment Provider (Supports Vercel, Render & Railway Parity) ─────────
+app.get('/api/env', (req, res) => {
+  const backendUrl = process.env.RENDER_BACKEND_URL || 
+                     process.env.RENDER_EXTERNAL_URL || 
+                     process.env.RAILWAY_BACKEND_URL || 
+                     process.env.BACKEND_URL || '';
+  res.json({
+    success: true,
+    backendUrl: backendUrl.trim().replace(/\/+$/, ''),
+    googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+    cloudinaryConfigured: cloudinaryManager.isConfigured(),
+    githubBackupConfigured: githubBackup.isConfigured(),
+    provider: (process.env.RENDER || process.env.RENDER_EXTERNAL_URL) ? 'render' : (process.env.RAILWAY_ENVIRONMENT ? 'railway' : 'custom'),
+    source: 'express_backend_environment'
+  });
+});
+
+// ─── Account Session Persistence (Strict Google 1-Time Binding) ──────────────
+const ACCOUNT_SESSIONS_FILE = path.join(__dirname, 'data', 'account_sessions.json');
+
+function loadAccountSessions() {
+  try {
+    if (fs.existsSync(ACCOUNT_SESSIONS_FILE)) {
+      return JSON.parse(fs.readFileSync(ACCOUNT_SESSIONS_FILE, 'utf8'));
+    }
+  } catch (err) {
+    console.warn('[ACCOUNT-SESSIONS] Read error:', err.message);
+  }
+  return {};
+}
+
+function saveAccountSessions(data) {
+  try {
+    const dir = path.dirname(ACCOUNT_SESSIONS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(ACCOUNT_SESSIONS_FILE, JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[ACCOUNT-SESSIONS] Save error:', err.message);
+  }
+}
+
+// Check if a Google Account has already bound a Session ID
+app.get('/api/account-session-status', (req, res) => {
+  const accountKey = req.query.sub || req.query.email;
+  if (!accountKey) {
+    return res.status(400).json({ success: false, error: 'Google account sub/email is required' });
+  }
+  const store = loadAccountSessions();
+  const binding = store[accountKey] || null;
+  res.json({
+    success: true,
+    isBound: !!binding,
+    binding: binding ? {
+      email: binding.email,
+      name: binding.name,
+      boundAt: binding.boundAt,
+      locked: true
+    } : null
+  });
+});
+
+// ─── Session ID Connection Endpoint (Strict 1-Time Per Google Account) ───────
 app.post('/api/session', async (req, res) => {
   try {
-    const { sessionId } = req.body;
+    const { sessionId, googleUser } = req.body;
     if (!sessionId) {
       return res.status(400).json({ success: false, error: 'Session ID string is required' });
     }
 
-    console.log('[SESSION] Web user submitted Session ID. Applying...');
+    const store = loadAccountSessions();
+    const accountKey = googleUser?.sub || googleUser?.email;
+
+    // Strict 1-Time Session Rule: Check if this Google account already bound a session
+    if (accountKey && store[accountKey] && store[accountKey].locked) {
+      return res.status(403).json({
+        success: false,
+        error: `Security Lock: This Google account (${store[accountKey].email || accountKey}) has already bound a WhatsApp Session ID. Each Google account can only register a Session ID one time.`,
+        alreadyBound: true,
+        boundAt: store[accountKey].boundAt
+      });
+    }
+
+    console.log(`[SESSION] Applying Session ID for Google account: ${accountKey || 'operator'}...`);
 
     if (sock) {
       try { sock.end(); } catch (_) {}
@@ -558,12 +701,25 @@ app.post('/api/session', async (req, res) => {
       });
     }
 
+    // Permanently record and lock this Session ID to the authenticated Google account
+    if (accountKey) {
+      store[accountKey] = {
+        sub: googleUser.sub || null,
+        email: googleUser.email || 'operator@zaidashiq.studio',
+        name: googleUser.name || 'Google User',
+        boundAt: new Date().toISOString(),
+        locked: true
+      };
+      saveAccountSessions(store);
+      console.log(`[SESSION] Successfully locked Session ID to Google Account: ${googleUser.email || accountKey}`);
+    }
+
     connectionStatus = 'awaiting_scan';
     lastQrDataUrl = null;
     pairingCodeCache = null;
 
     io.emit('status', { status: 'awaiting_scan', botJid: null });
-    io.emit('session_applied');
+    io.emit('session_applied', { account: accountKey || null });
 
     setTimeout(() => {
       startWhatsApp();
@@ -571,7 +727,8 @@ app.post('/api/session', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Session ID successfully restored! WhatsApp socket is connecting...'
+      message: 'Session ID successfully restored and locked to your Google account! WhatsApp socket is connecting...',
+      boundAccount: accountKey || null
     });
   } catch (err) {
     console.error('[SESSION] Error applying session ID:', err);
@@ -778,6 +935,313 @@ app.post('/api/update-dp', async (req, res) => {
   } catch (err) {
     console.error('[DP-UPDATER] Update error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Feature 5: Send Voice Note (PTT) ─────────────────────────────────────────
+app.post('/api/send-voice-note', async (req, res) => {
+  try {
+    const { to, audioBase64, mime } = req.body;
+
+    if (!sock || connectionStatus !== 'connected') {
+      return res.status(400).json({ success: false, error: 'WhatsApp is not connected. Link device first.' });
+    }
+    if (!to) {
+      return res.status(400).json({ success: false, error: 'Recipient phone number is required.' });
+    }
+    if (!audioBase64) {
+      return res.status(400).json({ success: false, error: 'Audio data is required.' });
+    }
+
+    const cleanTo = to.replace(/[^0-9]/g, '');
+    const targetJid = `${cleanTo}@s.whatsapp.net`;
+    const rawBase64 = audioBase64.replace(/^data:[^;]+;base64,/, '');
+    const audioBuffer = Buffer.from(rawBase64, 'base64');
+
+    let targetMime = mime || 'audio/ogg; codecs=opus';
+    if (!targetMime.includes('opus') && targetMime.includes('ogg')) {
+      targetMime = 'audio/ogg; codecs=opus';
+    }
+
+    // Optional Cloudinary Media Hosting
+    let cloudinaryUrl = null;
+    if ((req.body.useCloudinary || cloudinaryManager.isConfigured()) && cloudinaryManager.isConfigured()) {
+      try {
+        const cRes = await cloudinaryManager.upload(audioBuffer, {
+          resourceType: 'video',
+          folder: 'zaid-bot-voice-notes',
+          filename: `voice_${cleanTo}_${Date.now()}.ogg`
+        });
+        cloudinaryUrl = cRes.secure_url;
+      } catch (cErr) {
+        console.warn('[Cloudinary] Voice note upload warning:', cErr.message);
+      }
+    }
+
+    const sentMsg = await sock.sendMessage(targetJid, {
+      audio: audioBuffer,
+      mimetype: targetMime,
+      ptt: true
+    });
+
+    console.log(`[VOICE-NOTE] Successfully dispatched voice note (PTT) to +${cleanTo}`);
+    res.json({
+      success: true,
+      message: `Voice note delivered to +${cleanTo}`,
+      messageId: sentMsg?.key?.id,
+      cloudinaryUrl
+    });
+  } catch (err) {
+    console.error('[VOICE-NOTE] Transmission error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── Feature 6: Send Video Note (PTV) ─────────────────────────────────────────
+app.post('/api/send-video-note', async (req, res) => {
+  try {
+    const { to, videoBase64, mime } = req.body;
+
+    if (!sock || connectionStatus !== 'connected') {
+      return res.status(400).json({ success: false, error: 'WhatsApp is not connected. Link device first.' });
+    }
+    if (!to) {
+      return res.status(400).json({ success: false, error: 'Recipient phone number is required.' });
+    }
+    if (!videoBase64) {
+      return res.status(400).json({ success: false, error: 'Video data is required.' });
+    }
+
+    const cleanTo = to.replace(/[^0-9]/g, '');
+    const targetJid = `${cleanTo}@s.whatsapp.net`;
+    const rawBase64 = videoBase64.replace(/^data:[^;]+;base64,/, '');
+    const videoBuffer = Buffer.from(rawBase64, 'base64');
+
+    const targetMime = mime || 'video/mp4';
+
+    // Optional Cloudinary Media Hosting
+    let cloudinaryUrl = null;
+    if ((req.body.useCloudinary || cloudinaryManager.isConfigured()) && cloudinaryManager.isConfigured()) {
+      try {
+        const cRes = await cloudinaryManager.upload(videoBuffer, {
+          resourceType: 'video',
+          folder: 'zaid-bot-video-notes',
+          filename: `video_note_${cleanTo}_${Date.now()}.mp4`
+        });
+        cloudinaryUrl = cRes.secure_url;
+      } catch (cErr) {
+        console.warn('[Cloudinary] Video note upload warning:', cErr.message);
+      }
+    }
+
+    const sentMsg = await sock.sendMessage(targetJid, {
+      video: videoBuffer,
+      mimetype: targetMime,
+      ptv: true
+    });
+
+    console.log(`[VIDEO-NOTE] Successfully dispatched circular video note (PTV) to +${cleanTo}`);
+    res.json({
+      success: true,
+      message: `Video note (PTV) delivered to +${cleanTo}`,
+      messageId: sentMsg?.key?.id,
+      cloudinaryUrl
+    });
+  } catch (err) {
+    console.error('[VIDEO-NOTE] Transmission error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── Feature 7: Online Tracer API ────────────────────────────────────────────
+app.get('/api/online-tracer', (req, res) => {
+  try {
+    const targets = onlineTracer.getTargets();
+    const logs = onlineTracer.getLogs(req.query.number || null, parseInt(req.query.limit, 10) || 150);
+    res.json({
+      success: true,
+      targets,
+      logs
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/online-tracer/track', async (req, res) => {
+  try {
+    const { number, name } = req.body;
+    if (!number) {
+      return res.status(400).json({ success: false, error: 'Target phone number is required.' });
+    }
+
+    const target = onlineTracer.addTarget(number, name);
+
+    // If WhatsApp socket is connected, immediately subscribe to presence
+    if (sock && connectionStatus === 'connected') {
+      try {
+        await sock.presenceSubscribe(target.jid);
+        console.log(`[OnlineTracer] Subscribed to presence for ${target.jid}`);
+      } catch (subErr) {
+        console.warn(`[OnlineTracer] Presence subscribe warning for ${target.jid}:`, subErr.message);
+      }
+    }
+
+    io.emit('online_tracer_target_added', target);
+    res.json({
+      success: true,
+      message: `Started tracking presence for +${target.number}`,
+      target
+    });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/online-tracer/target/:idOrNumber', (req, res) => {
+  try {
+    const { idOrNumber } = req.params;
+    const removed = onlineTracer.removeTarget(idOrNumber);
+    if (removed) {
+      io.emit('online_tracer_target_removed', { idOrNumber });
+    }
+    res.json({ success: true, removed });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/online-tracer/clear-logs', (req, res) => {
+  try {
+    const { number } = req.body;
+    onlineTracer.clearLogs(number || null);
+    io.emit('online_tracer_logs_cleared', { number: number || null });
+    res.json({ success: true, message: 'Presence logs cleared successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── Cloud & Production Status ────────────────────────────────────────────────
+app.get('/api/cloud-status', (req, res) => {
+  const backendUrl = process.env.RENDER_BACKEND_URL || 
+                     process.env.RENDER_EXTERNAL_URL || 
+                     process.env.RAILWAY_BACKEND_URL || 
+                     process.env.BACKEND_URL || '';
+  const provider = (process.env.RENDER || process.env.RENDER_EXTERNAL_URL) ? 'Render' : 
+                   (process.env.RAILWAY_ENVIRONMENT ? 'Railway' : 'Node.js Cloud Service');
+
+  res.json({
+    success: true,
+    backend: {
+      provider,
+      backendUrl,
+      connected: connectionStatus === 'connected',
+      botJid: botJid || null,
+      uptime: Math.floor(process.uptime())
+    },
+    render: {
+      backendUrl,
+      connected: connectionStatus === 'connected',
+      botJid: botJid || null,
+      uptime: Math.floor(process.uptime())
+    },
+    railway: {
+      backendUrl,
+      connected: connectionStatus === 'connected',
+      botJid: botJid || null,
+      uptime: Math.floor(process.uptime())
+    },
+    google: {
+      clientIdConfigured: !!process.env.GOOGLE_CLIENT_ID
+    },
+    cloudinary: cloudinaryManager.getStatus(),
+    github: githubBackup.getStatus()
+  });
+});
+
+// ─── Trigger GitHub Session Backup ───────────────────────────────────────────
+app.post('/api/backup/github', async (req, res) => {
+  try {
+    if (!githubBackup.isConfigured()) {
+      return res.status(400).json({
+        success: false,
+        error: 'GITHUB_TOKEN environment variable is not configured on Railway / server.'
+      });
+    }
+    const result = await githubBackup.backupSession(SESSION_DIR, {
+      triggeredBy: req.body.triggeredBy || 'web_panel_operator',
+      botJid: botJid || null
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('[GitHubBackup] Backup trigger error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── Feature 8: Anti-Delete / Deleted Messages Endpoints ──────────────────────
+app.get('/api/deleted-messages', (req, res) => {
+  try {
+    const filterNumber = req.query.number || null;
+    const filterType = req.query.type || null;
+    const logs = deletedMessagesManager.getLogs(filterNumber, filterType);
+
+    const allLogs = deletedMessagesManager.getLogs();
+    const counts = {
+      total: allLogs.length,
+      photos: allLogs.filter(l => l.type === 'photo').length,
+      videos: allLogs.filter(l => l.type === 'video').length,
+      voices: allLogs.filter(l => l.type === 'voice').length,
+      texts: allLogs.filter(l => l.type === 'text').length
+    };
+
+    res.json({
+      success: true,
+      logs,
+      counts
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/deleted-media/:filename', (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const filePath = deletedMessagesManager.getMediaFilePath(filename);
+    if (!filePath) {
+      return res.status(404).send('Media file not found or expired');
+    }
+
+    const ext = path.extname(filename).toLowerCase();
+    const mimeTypes = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.webp': 'image/webp',
+      '.mp4': 'video/mp4',
+      '.ogg': 'audio/ogg; codecs=opus',
+      '.opus': 'audio/ogg; codecs=opus',
+      '.mp3': 'audio/mpeg'
+    };
+
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    fs.createReadStream(filePath).pipe(res);
+  } catch (err) {
+    res.status(500).send('Error streaming media file');
+  }
+});
+
+app.post('/api/deleted-messages/clear', (req, res) => {
+  try {
+    deletedMessagesManager.clearLogs();
+    io.emit('deleted_messages_cleared');
+    res.json({ success: true, message: 'Deleted messages vault cleared successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

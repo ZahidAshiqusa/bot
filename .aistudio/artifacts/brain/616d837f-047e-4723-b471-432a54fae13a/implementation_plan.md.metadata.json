@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan for the Deleted Messages Vault (Anti-Delete Audit) feature, capturing revoked text, photos, videos, and voice notes from direct messages with media previews and Cloudinary CDN hosting.",
+  "updatedAt":  "2026-10-21T14:16:43.670992439Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

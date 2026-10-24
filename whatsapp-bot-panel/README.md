@@ -4,134 +4,172 @@ A production-ready, split-architecture WhatsApp automation suite and tactical we
 
 ---
 
-## ⚡ CRITICAL GUIDE: CONNECTING RAILWAY BACKEND TO VERCEL FRONTEND
+## ⚡ MULTI-CLOUD PRODUCTION SETUP GUIDE
 
-> **Architecture Overview**: The **Backend** runs on **Railway** (maintaining 24/7 Baileys WhatsApp connection, processing 118 bot commands, intercepting ViewOnce media, and grabbing statuses). The **Frontend** runs on **Vercel** as a high-performance Progressive Web App (PWA) communicating in real-time over Socket.io and HTTPS.
+> **Architecture Overview**: The **Backend** runs 24/7 on **Render** (or **Railway**) maintaining Baileys WhatsApp sockets, subscribing to presence updates, processing bot commands, intercepting ViewOnce media, and syncing backups to GitHub and Cloudinary. The **Frontend** runs on **Vercel** as a high-performance Progressive Web App (PWA) reading environment variables dynamically via a serverless function (`/api/env`) and communicating in real-time over Socket.io and HTTPS.
 
-Follow these 4 steps to link your Railway backend with your Vercel frontend:
+Follow these steps to configure production connectivity across **Render**, **Vercel**, **Railway**, **GitHub**, **Cloudinary**, and **Google Auth**:
 
-### STEP 1: Deploy Backend to Railway & Copy Public URL
-1. Go to [Railway.app](https://railway.app/) and create a new project from your GitHub repository.
+---
+
+### STEP 1: Deploy Backend to Render (Recommended)
+
+#### Option A: One-Click Render Blueprint (Using `render.yaml`)
+1. Push your repository to GitHub.
+2. In [Render Dashboard](https://dashboard.render.com/), click **New + > Blueprint**.
+3. Connect your GitHub repository. Render will automatically detect `render.yaml` and configure:
+   - **Service Name**: `zaid-whatsapp-bot-backend`
+   - **Environment**: Node
+   - **Build Command**: `npm install`
+   - **Start Command**: `node server.js`
+   - **Health Check Path**: `/api/health`
+4. Fill in any required environment secrets (or add them in the dashboard after creation) and click **Apply**.
+
+#### Option B: Manual Web Service on Render
+1. In [Render Dashboard](https://dashboard.render.com/), click **New + > Web Service**.
+2. Select your repository.
+3. Configure the service settings:
+   - **Name**: `zaid-whatsapp-bot-backend`
+   - **Root Directory**: `backend` (or leave empty if deploying repository root)
+   - **Runtime**: `Node`
+   - **Build Command**: `npm install`
+   - **Start Command**: `node server.js`
+   - **Plan**: Free or Starter
+4. Under **Advanced Settings**:
+   - **Health Check Path**: `/api/health` (returns HTTP 200 `{ status: "ok" }`)
+5. Under **Environment Variables**, add:
+   - `NODE_ENV` = `production`
+   - `SESSION_ID` = `...` (optional; if you already have saved session credentials)
+   - `GOOGLE_CLIENT_ID` = `...` (for strict identity check)
+   - `CLOUDINARY_URL` = `cloudinary://API_KEY:API_SECRET@CLOUD_NAME` (enables Cloud CDN media hosting for voice notes, video notes, and uncropped profile photos)
+   - `GITHUB_TOKEN` = `ghp_...` (Personal Access Token with `gist` scope; auto-backs up session credentials to a private secret Gist to prevent data loss on container restarts)
+   - `GITHUB_GIST_ID` = `...` (optional; if restoring an existing backup Gist)
+   - `ADMIN_NUMBER` = `9232999931199`
+6. Click **Create Web Service**. Once deployed, copy your Render URL:
+   ```
+   https://your-bot-backend.onrender.com
+   ```
+
+---
+
+### STEP 1 (Alternative): Deploy Backend to Railway
+1. In [Railway.app](https://railway.app/), create a **New Project > Deploy from GitHub repo**.
 2. In your Railway Service **Settings**:
-   - Set **Root Directory** to `/backend`
-   - Ensure the start command is `node server.js` (configured automatically via `package.json`).
-3. Under **Variables**, add:
-   - `PORT=3000` (or leave default; Railway assigns this dynamically).
-   - *(Optional)* `SESSION_ID=...` if you already have saved session credentials.
-4. Under **Networking**, click **Generate Domain** and copy your public URL:
+   - Set **Root Directory** to `/backend` (or leave as root `/` if deploying full project).
+   - Build/Start command: `node server.js`.
+3. In Railway **Variables**, add your production secrets (`SESSION_ID`, `GOOGLE_CLIENT_ID`, `CLOUDINARY_URL`, `GITHUB_TOKEN`, `ADMIN_NUMBER`).
+4. In Railway **Networking**, click **Generate Domain** and copy your public URL:
    ```
    https://your-bot-production.up.railway.app
    ```
 
 ---
 
-### STEP 2: Deploy Frontend to Vercel
-1. Go to [Vercel.com](https://vercel.com/) and click **Add New > Project**.
-2. Select your GitHub repository.
-3. In **Project Settings**:
+### STEP 2: Deploy Frontend to Vercel (Zero-Config Connection)
+1. In [Vercel.com](https://vercel.com/), click **Add New > Project** and select your GitHub repository.
+2. In **Project Settings**:
    - Set **Root Directory** to `frontend`.
    - Framework Preset: `Other`.
-   - Leave Build and Output settings default (it deploys `index.html`, `manifest.json`, and `vercel.json` as static PWA).
-4. Click **Deploy**. Vercel will give you a domain:
+   - Keep default build and output settings (Vercel automatically serves `index.html`, `manifest.json`, `vercel.json`, and the `/api/env.js` serverless function).
+3. Under **Environment Variables**, add:
+   - `RENDER_BACKEND_URL` = `https://your-bot-backend.onrender.com` (for Render backend)
+   - `RAILWAY_BACKEND_URL` = `https://your-bot-production.up.railway.app` (backward-compatible fallback)
+   - `GOOGLE_CLIENT_ID` = `your-google-client-id.apps.googleusercontent.com`
+   - *(Optional)* `CLOUDINARY_URL` = `cloudinary://...` (if configuring cloud media flags on frontend)
+4. Click **Deploy**. Vercel will generate your live production frontend URL:
    ```
    https://your-studio-panel.vercel.app
    ```
+   *Your Vercel site will automatically query `/api/env` on load, discover the Render backend, initialize Google Sign-In, and connect with zero manual operator intervention!*
 
 ---
 
-### STEP 3: Connect Vercel to Railway (Live Telemetry Sync)
-You have two instant options to link the frontend to the backend:
-
-- **Option A (One-Click URL Parameter — Recommended)**:
-  Append `?backend=` to your Vercel URL and open it in your browser:
-  ```
-  https://your-studio-panel.vercel.app/?backend=https://your-bot-production.up.railway.app
-  ```
-  *The panel will automatically detect the Railway backend URL, save it into browser `localStorage`, and establish real-time Socket.io telemetry immediately!*
-
-- **Option B (In-App Sync Bar)**:
-  1. Open your Vercel site (`https://your-studio-panel.vercel.app`).
-  2. Paste your Railway URL into the top navigation input bar: `https://your-bot-production.up.railway.app`.
-  3. Click **SYNC**.
-  4. The top-right badge will change from **DISCONNECTED** to:
-     - 🟡 **AWAITING SCAN** (if bot needs pairing)
-     - 🟢 **CONNECTED** (if WhatsApp socket is authenticated)
+### STEP 3: Configure Google OAuth 2.0 Web Client
+1. Visit [Google Cloud Console > APIs & Services > Credentials](https://console.cloud.google.com/apis/credentials).
+2. Click **Create Credentials > OAuth client ID** (Application Type: *Web application*).
+3. Under **Authorized JavaScript origins**, add your domains:
+   - `https://your-studio-panel.vercel.app` (your production Vercel frontend)
+   - `https://your-bot-backend.onrender.com` (your Render backend)
+   - `https://your-bot-production.up.railway.app` (your Railway backend)
+   - `http://localhost:3000` (for local development)
+4. Copy the Client ID and paste it into Vercel, Render, and Railway environment variables as `GOOGLE_CLIENT_ID`.
+5. When `GOOGLE_CLIENT_ID` is present, the control panel enforces strict Google Authentication and locks session editing on a 1-time per-Google-account basis.
 
 ---
 
-### STEP 4: Making Sure Google Auth Works on Vercel
-The control panel includes full support for Google Authentication:
-
-- **Built-In Verified Sign-In (Zero Setup)**:
-  Click **"Sign in with Google Account"** or **"ENTER STUDIO WORKSPACE"**. The authentication gate verifies the operator session, saves profile details to `localStorage`, and reveals the dashboard with the active avatar badge (`Zaid Ashiq • zahidashiqusa@gmail.com`).
-
-- **Official Google Cloud OAuth 2.0 Integration (Custom Client ID)**:
-  To use Google's native one-tap identity prompt on your custom Vercel domain:
-  1. Visit the [Google Cloud Console > Credentials](https://console.cloud.google.com/apis/credentials).
-  2. Create an **OAuth 2.0 Client ID** (Application Type: *Web application*).
-  3. Under **Authorized JavaScript origins**, add your Vercel production domain:
-     - `https://your-studio-panel.vercel.app`
-     - `http://localhost:3000` (for local preview)
-  4. Copy your Google Client ID (e.g. `123456789-xyz.apps.googleusercontent.com`).
-  5. In the control panel lock screen, click **"Configure Custom Google OAuth Client ID"**, paste the ID, and click **SAVE & RELOAD**. The official Google GSI button will automatically render and authenticate your Google account via JWT token!
+### STEP 4: Cloudinary Media CDN & GitHub Backup Setup
+- **Cloudinary CDN Hosting**:
+  - Sign up for a free account at [Cloudinary.com](https://cloudinary.com/).
+  - Copy your `CLOUDINARY_URL` from the Cloudinary dashboard:
+    `CLOUDINARY_URL=cloudinary://1234567890:abcdefghijk@mycloudname`
+  - When set on Render / Railway, voice notes, video notes, uncropped profile photos, and grabbed status media are hosted on Cloudinary's global CDN.
+- **GitHub Automated Session Backup**:
+  - Go to [GitHub Settings > Developer Settings > Personal Access Tokens > Tokens (classic)](https://github.com/settings/tokens).
+  - Generate a new token with the `gist` scope checked.
+  - Set `GITHUB_TOKEN=ghp_...` in Render / Railway environment variables.
+  - The bot automatically serializes `creds.json` and session bindings into an encrypted private secret Gist whenever linked, and restores them on container restarts.
 
 ---
 
-## Project Structure
+## 🎯 Production Environment Variables Reference
 
-```
-whatsapp-bot-panel/
-├── README.md
-├── backend/
-│   ├── package.json        # Complete dependencies (Baileys, Axios, Pino, Sharp, Jimp)
-│   ├── server.js           # API, WebSocket, and 118 Bot Commands Engine
-│   ├── index.js            # Stock Management Bot Logic
-│   ├── config.js           # Bot configuration
-│   ├── settings.js         # Settings & runtime vars
-│   ├── commands/           # 118 bot commands (.aiart, .alive, .ping, .sticker, etc.)
-│   ├── lib/                # Media converters, helpers, and scrapers
-│   ├── data/               # Schemas and local databases
-│   ├── lang/               # Multi-language translation packs
-│   └── media/              # Menu audio and image assets
-└── frontend/
-    ├── index.html          # Light-mode Sci-Fi Tactical Control Panel (Zero Emojis, Pure SVG)
-    ├── manifest.json       # PWA Web App Manifest
-    └── vercel.json         # Vercel deployment routing & headers
-```
+| Variable Name | Required | Deployment Target | Description |
+| :--- | :--- | :--- | :--- |
+| `RENDER_BACKEND_URL` | **Yes (if Render)** | Vercel | Public HTTPS address of your Render backend (e.g. `https://your-bot.onrender.com`) |
+| `RAILWAY_BACKEND_URL` | **Yes (if Railway)**| Vercel | Public HTTPS address of your Railway backend service (backward compatible fallback) |
+| `GOOGLE_CLIENT_ID` | **Yes** | Vercel & Render / Railway | Google OAuth 2.0 Web Client ID for strict login authentication |
+| `PORT` | Optional | Render / Railway / Local | Server port (Render automatically assigns; defaults to 3000) |
+| `SESSION_ID` | Optional | Render / Railway | Pre-existing WhatsApp Baileys session string |
+| `CLOUDINARY_URL` | Optional | Render / Railway / Vercel | Cloudinary connection string for media CDN hosting |
+| `CLOUDINARY_CLOUD_NAME` | Optional | Render / Railway | Cloudinary cloud name (if not using `CLOUDINARY_URL`) |
+| `CLOUDINARY_API_KEY` | Optional | Render / Railway | Cloudinary API Key |
+| `CLOUDINARY_API_SECRET` | Optional | Render / Railway | Cloudinary API Secret |
+| `GITHUB_TOKEN` | Optional | Render / Railway | Personal Access Token (`gist` scope) for session backups |
+| `GITHUB_GIST_ID` | Optional | Render / Railway | Target private Gist ID (auto-created on initial backup) |
+| `ADMIN_NUMBER` | Optional | Render / Railway | Bot admin phone number(s) (comma-separated, without +) |
 
 ---
 
-## Key Features
+## 🚀 Key Features
 
-1. **Google Authentication Gate**
-   - Secure tactical entry screen with Google Identity session verification and local administrator access.
-2. **Triple WhatsApp Device Linking Options**
-   - **QR Code Stream**: Real-time Socket.io streaming of dynamic Baileys QR codes rendered as sharp DataURLs.
-   - **8-Digit Pairing Code**: Direct WhatsApp pairing by phone number with country code (e.g., `9232999931199`) using `sock.requestPairingCode()`.
-   - **Session ID Web Connection & Export**: Paste an existing `SESSION_ID` directly into the web UI for immediate reconnection, or 1-click export active credentials for deployment into Railway environment variables.
-   - **Session Reset / Logout**: Instant reset of `./auth_info` credentials and fresh socket lifecycle reboot.
-3. **ViewOnce Interceptor & 1-Click Downloader**
-   - Intercepts all incoming 1-view media formats (`viewOnceMessage`, `viewOnceMessageV2`, `viewOnceMessageV2Extension`, and media flags).
-   - Formats titles strictly: `<sender_phone> 1view picture`, `<sender_phone> 1view voice`, `<sender_phone> 1view video`.
-   - Ring buffer stores recent 50 items with real-time socket delivery (`new_viewonce`) and 1-click downloads.
-4. **Customized Interactive Button Message Sender**
-   - Uses Baileys `generateWAMessageFromContent` with `proto.Message.InteractiveMessage` (nativeFlowMessage with `quick_reply` buttons) and `sock.relayMessage`.
-   - Supports customized header, body, footer, and dynamic 1 to 5 interactive button labels.
-5. **WhatsApp Status Grabber**
-   - Listens to `status@broadcast` updates.
-   - Intercepts status images, videos, and captions in real-time with 1-click direct download.
-6. **Full-Resolution Uncropped Profile Picture (DP) Updater**
-   - Bypasses WhatsApp's default 640x640 cropping square.
-   - Generates an uncropped HD square canvas (up to 1280px) with custom padding (Dark Slate, Pure White, Pitch Black) composite.
-   - Dispatches a direct WhatsApp IQ profile picture stanza (`w:profile:picture`) without compression.
-7. **118 Integrated Bot Commands**
-   - Runs directly on incoming WhatsApp chats (e.g., `.alive`, `.ping`, `.help`, `.sticker`, `.aiart`, `.gemini`, `.play`, `.song`, `.video`, `.items`, `.wallet`, `.person`).
+1. **WhatsApp Online Tracer (Live Presence Telemetry)**
+   - Subscribes to contact presence via WhatsApp IQ stanzas (`sock.presenceSubscribe`).
+   - Tracks transitions: `online` (`available`), `offline` (`unavailable`), `typing...` (`composing`), and `recording audio...` (`recording`).
+   - Displays real-time timeline logs: `9232999931199 online at 05:13am · offline 05:19am (Duration: 6m 00s)`.
+   - Live Socket.io push stream, instant number filtering, persistent auto-rotating JSON storage (`data/online_tracer.json`), and 1-click JSON log export.
+2. **Cloud & Production Drawer / Modal**
+   - Live health monitors for Railway, Google Auth, Cloudinary CDN, and GitHub backup.
+   - 1-click `[ BACKUP SESSION NOW ]` button triggering instant encrypted Gist synchronization.
+3. **Google Authentication Gate & 1-Time Session Lock**
+   - Official Google Identity Services integration.
+   - Every verified Google account can link/bind WhatsApp session credentials once, preventing unauthorized hijacking.
+4. **WhatsApp Voice Note Transmitter (PTT Waveform)**
+   - Live microphone recording with audio waveform timer or audio file upload (MP3, OGG, WAV, M4A).
+   - Sends authentic green microphone Push-To-Talk (PTT) messages with optional Cloudinary hosting.
+5. **WhatsApp Video Note Transmitter (Circular PTV Note)**
+   - Live camera recording with circular viewfinder or MP4/MOV file upload.
+   - Dispatches authentic circular instant video notes (`ptv: true`) with optional Cloudinary CDN offload.
+6. **Triple Device Linking**
+   - Dynamic QR Code stream, 8-Digit Pairing Code by phone number, or direct Session ID input.
+7. **ViewOnce Interceptor & 1-Click Downloader**
+   - Captures all incoming 1-view pictures, voice messages, and videos into a real-time download feed.
+8. **WhatsApp Status Grabber**
+   - Intercepts stories from `status@broadcast` with 1-click HD downloads.
+9. **Full-Resolution Uncropped Profile Picture (DP) Studio**
+   - High-resolution uncropped DP canvas generation (up to 1280px) with custom padding and direct WhatsApp IQ upload.
+10. **118 Integrated Bot Commands**
+    - Commands run on incoming chats (`.alive`, `.ping`, `.aiart`, `.gemini`, `.sticker`, `.play`, `.song`, `.video`, etc.).
+11. **Deleted Messages Vault (Anti-Delete Audit with Media Previews)**
+    - Automatically intercepts and preserves messages deleted by senders ("Delete for Everyone") in direct private conversations.
+    - Captures sender phone number, sent time, deleted time, active duration, and text content.
+    - Previews and downloads deleted media: photos (with zoom lightbox), circular/regular videos (with HTML5 player), and voice notes (with audio player).
+    - Stores locally in `data/deleted_media/` with optional Cloudinary CDN hosting and JSON audit log export.
 
 ---
 
-## Local Development
+## 🛠️ Local Development & Testing
 
-### 1. Unified Mode (Frontend + Backend on Port 3000)
+### 1. Run Everything Locally on Port 3000
 ```bash
 npm install
 npm run dev
@@ -147,13 +185,23 @@ node server.js
 
 ---
 
-## API Documentation
+## 📡 REST API Documentation
 
-- `GET /api/state` — Returns current WhatsApp connection status, bot JID, latest QR code, and recent ViewOnce & Status items.
-- `POST /api/session` — Body: `{ sessionId: "ZAID~..." }`. Directly restores session credentials and reconnects.
-- `GET /api/session` — Exports active session credentials formatted as `ZAID~<base64>`.
-- `POST /api/pair` — Body: `{ phone: "9232999931199" }`. Returns 8-digit WhatsApp pairing key.
-- `POST /api/logout` — Clears `./auth_info` directory and re-initializes socket.
-- `POST /api/send-buttons` — Body: `{ to, headerTitle, body, footer, buttons: ["Btn 1", "Btn 2"] }`.
-- `POST /api/update-dp` — Body: `{ imageBase64: "data:image/jpeg;base64,...", bgColor: "#0f172a" }`.
-- `GET /api/health` — System telemetry, uptime, and loaded commands count.
+- `GET /api/env` — Returns runtime backend URL, Google Client ID, and Cloudinary/GitHub status.
+- `GET /api/cloud-status` — Returns multi-cloud health (Railway, Google, Cloudinary, GitHub).
+- `POST /api/backup/github` — Triggers immediate session backup to a private GitHub Gist.
+- `GET /api/online-tracer` — Returns monitored targets and recent presence timeline logs.
+- `POST /api/online-tracer/track` — Body: `{ number: "9232999931199", name: "Target 1" }`. Subscribes to contact presence.
+- `DELETE /api/online-tracer/target/:idOrNumber` — Stops tracking target number.
+- `POST /api/online-tracer/clear-logs` — Clears presence log history.
+- `POST /api/send-voice-note` — Body: `{ to, audioBase64, mime, useCloudinary }`. Sends PTT voice note.
+- `POST /api/send-video-note` — Body: `{ to, videoBase64, mime, useCloudinary }`. Sends circular PTV video note.
+- `POST /api/send-buttons` — Body: `{ to, headerTitle, body, footer, buttons: [...] }`. Sends interactive buttons.
+- `POST /api/update-dp` — Body: `{ imageBase64, bgColor }`. Updates uncropped WhatsApp profile picture.
+- `GET /api/deleted-messages` — Returns captured deleted messages list and media breakdown counts.
+- `GET /api/deleted-media/:filename` — Serves recovered photos, videos, and voice notes with proper content-type headers.
+- `POST /api/deleted-messages/clear` — Clears the deleted messages audit vault.
+- `GET /api/state` — Returns connection status, QR code, pairing code, and grabbed items.
+- `POST /api/session` — Imports and binds WhatsApp session credentials.
+- `GET /api/session` — Exports active session credentials.
+- `POST /api/logout` — Resets session and restarts socket.
